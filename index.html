@@ -41,66 +41,102 @@ function addPrereqRow() {
     row.insertCell(2).innerHTML = '<input type="text">';
 }
 
-// Parse CSV text into objects
+// Parse CSV text into objects (handles quoted fields)
 function parseCSV(text) {
     const lines = text.trim().split("\n");
+    if (lines.length < 2) return [];
+    
     const result = [];
     for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(",");
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Handle CSV with possible quotes
+        const parts = line.split(",");
         if (parts.length < 3) continue;
-        const [station_name, user_name, viewable] = parts;
+        
+        // Remove quotes if present
+        const station_name = parts[0].replace(/^"|"$/g, '');
+        const user_name = parts[1].replace(/^"|"$/g, '');
+        const viewable = parts[2].replace(/^"|"$/g, '');
+        
         result.push({ station_name, user_name, viewable });
     }
     return result;
 }
 
-// Load CSV for stations or programs
-function loadCSV(type) {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".csv";
+// Display CSV data in the table
+function displayData(rows, containerId, type) {
+    const box = document.getElementById(containerId);
+    
+    box.innerHTML = `
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="border-bottom:1px solid #ddd; padding:4px;">Select</th>
+                    <th style="border-bottom:1px solid #ddd; padding:4px;">Name</th>
+                    <th style="border-bottom:1px solid #ddd; padding:4px;">User</th>
+                    <th style="border-bottom:1px solid #ddd; padding:4px;">Viewable</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    `;
 
-    input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = evt => {
-            const rows = parseCSV(evt.target.result);
-            let box = null;
-            if (type === "stations") box = document.getElementById("stationList");
-            if (type === "programs") box = document.getElementById("programList");
-
-            box.innerHTML = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Select</th>
-                            <th>Name</th>
-                            <th>User</th>
-                            <th>Viewable</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            `;
-
-            const tbody = box.querySelector("tbody");
-            rows.forEach((r, index) => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td><input type="checkbox" id="${type}_${index}" data-name="${r.station_name}"></td>
-                    <td>${r.station_name}</td>
-                    <td>${r.user_name}</td>
-                    <td>${r.viewable}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        };
-        reader.readAsText(file);
-    };
-    input.click();
+    const tbody = box.querySelector("tbody");
+    rows.forEach((row, index) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="padding:4px;"><input type="checkbox" id="${type}_${index}" data-name="${row.station_name}"></td>
+            <td style="padding:4px;">${row.station_name}</td>
+            <td style="padding:4px;">${row.user_name}</td>
+            <td style="padding:4px;">${row.viewable}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
+
+
+// // Load CSV from GitHub URL automatically
+async function loadCSVFromGitHub(url, containerId, type) {
+    const statusId = type === 'station' ? 'stationsStatus' : 'programsStatus';
+    try {
+        const statusEl = document.getElementById(statusId);
+        if (statusEl) statusEl.textContent = `⏳ Loading ${type}s...`;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+        displayData(rows, containerId, type);
+        
+        if (statusEl) statusEl.textContent = `✅ Loaded ${rows.length} ${type}s`;
+    } catch (error) {
+        console.error(`Error loading ${type}:`, error);
+        const statusEl = document.getElementById(statusId);
+        if (statusEl) statusEl.textContent = `❌ Failed to load ${type}s`;
+        
+        const box = document.getElementById(containerId);
+        box.innerHTML = `<div style="color:red; padding:10px;">⚠️ Failed to load ${type}s. Check console.</div>`;
+    }
+}
+// async function loadCSVFromGitHub(url, containerId, type) {
+//     try {
+//         const response = await fetch(url);
+//         if (!response.ok) {
+//             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//         }
+//         const csvText = await response.text();
+//         const rows = parseCSV(csvText);
+//         displayData(rows, containerId, type);
+//         console.log(`Loaded ${rows.length} ${type} from GitHub`);
+//     } catch (error) {
+//         console.error(`Error loading ${type}:`, error);
+//         const box = document.getElementById(containerId);
+//         box.innerHTML = `<div style="color:red; padding:10px;">⚠️ Failed to load ${type}. Check console for details.</div>`;
+//     }
+// }
 
 // Save JSON on GO!
 function saveJSON() {
@@ -149,7 +185,23 @@ function saveJSON() {
     URL.revokeObjectURL(url);
 }
 
-window.onload = generatePayloadID;
+// Auto-load both CSV files when page loads
+window.onload = () => {
+    generatePayloadID();
+    
+    // REPLACE THESE URLs WITH YOUR ACTUAL GITHUB RAW URLs
+    loadCSVFromGitHub(
+        'https://raw.githubusercontent.com/Ryzenate/Payloader-Pro/refs/heads/main/available_stations.csv',
+        'stationList',
+        'station'
+    );
+    
+    loadCSVFromGitHub(
+        'https://raw.githubusercontent.com/Ryzenate/Payloader-Pro/refs/heads/main/available_programs.csv',
+        'programList',
+        'program'
+    );
+};
 </script>
 
 </head>
@@ -193,12 +245,19 @@ window.onload = generatePayloadID;
     <div class="grid-2">
         <div>
             <h3>Available Stations</h3>
-            <button onclick="loadCSV('stations')">Load Stations</button>
+            <!-- <button onclick="loadCSV('stations')">Load Stations</button> -->
+             <div style="margin-bottom: 8px;">
+    <span id="stationsStatus" style="font-size: 12px; color: #666;">📡 Loading stations...</span>
+</div>
+
             <div class="list-box" id="stationList"></div>
         </div>
         <div>
             <h3>Available Programs</h3>
-            <button onclick="loadCSV('programs')">Load Programs</button>
+            <!-- <button onclick="loadCSV('programs')">Load Programs</button> -->
+             <div style="margin-bottom: 8px;">
+    <span id="programsStatus" style="font-size: 12px; color: #666;">📡 Loading programs...</span>
+</div>
             <div class="list-box" id="programList"></div>
         </div>
     </div>
