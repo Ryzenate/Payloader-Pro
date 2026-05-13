@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payload Builder</title>
+
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    fieldset { border: 1px solid #aaa; padding: 12px; margin-bottom: 18px; }
+    h2 { margin: 0 0 10px 0; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    label { font-weight: bold; margin-top: 6px; display: block; }
+    input[type=text] { width: 100%; padding: 5px; box-sizing: border-box; }
+    .list-box { border: 1px solid #ccc; background: #fafafa; min-height: 150px; padding: 8px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid #ddd; padding: 4px 6px; text-align: left; }
+    th { background: #f0f0f0; font-weight: bold; }
+    tr:hover { background: #f9f9f9; }
+    button { padding: 6px 14px; margin: 6px 0; }
+</style>
+
+<script>
+// Generate unique Payload ID
+function generatePayloadID() {
+    const id = 'PL-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    document.getElementById("PayloadID").value = id;
+}
+
+// Toggle prerequisites visibility
+function togglePrereqs() {
+    document.getElementById("prereqContainer").style.display =
+        document.getElementById("chkPrereq").checked ? "block" : "none";
+}
+
+// Add a new prereq row
+function addPrereqRow() {
+    const table = document.getElementById("prereqTable");
+    const row = table.insertRow(-1);
+    row.insertCell(0).innerHTML = '<input type="text">';
+    row.insertCell(1).innerHTML = '<input type="text">';
+    row.insertCell(2).innerHTML = '<input type="text">';
+}
+
+// Parse CSV text into objects
+function parseCSV(text) {
+    const lines = text.trim().split("\n");
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",");
+        if (parts.length < 3) continue;
+        const [station_name, user_name, viewable] = parts;
+        result.push({ station_name, user_name, viewable });
+    }
+    return result;
+}
+
+// Load CSV for stations or programs
+function loadCSV(type) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".csv";
+
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = evt => {
+            const rows = parseCSV(evt.target.result);
+            let box = null;
+            if (type === "stations") box = document.getElementById("stationList");
+            if (type === "programs") box = document.getElementById("programList");
+
+            box.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Name</th>
+                            <th>User</th>
+                            <th>Viewable</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            `;
+
+            const tbody = box.querySelector("tbody");
+            rows.forEach((r, index) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><input type="checkbox" id="${type}_${index}" data-name="${r.station_name}"></td>
+                    <td>${r.station_name}</td>
+                    <td>${r.user_name}</td>
+                    <td>${r.viewable}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+// Save JSON on GO!
+function saveJSON() {
+    const prereqs = [];
+    const rows = document.querySelectorAll("#prereqTable tr:not(:first-child)");
+    rows.forEach(r => {
+        const cells = r.querySelectorAll("input");
+        prereqs.push({
+            component: cells[0].value,
+            comparestr: cells[1].value,
+            requiredversion: cells[2].value
+        });
+    });
+
+    const stationSelections = [];
+    document.querySelectorAll("#stationList input[type=checkbox]").forEach(cb => {
+        if (cb.checked) stationSelections.push(cb.dataset.name);
+    });
+
+    const programSelections = [];
+    document.querySelectorAll("#programList input[type=checkbox]").forEach(cb => {
+        if (cb.checked) programSelections.push(cb.dataset.name);
+    });
+
+    const data = {
+        payload_id: document.getElementById("PayloadID").value,
+        filename: document.getElementById("Filename").value,
+        oem: document.getElementById("OEM").value,
+        component: document.getElementById("Component").value,
+        installertype: document.getElementById("InstallerType").value,
+        installerfile: document.getElementById("InstallerFile").value,
+        reportedversion: document.getElementById("ReportedVersion").value,
+        urlpath: document.getElementById("URLPath").value,
+        stations_selected: stationSelections,
+        programs_selected: programSelections,
+        prerequisites_enabled: document.getElementById("chkPrereq").checked,
+        prerequisites: prereqs
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "payload.json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+window.onload = generatePayloadID;
+</script>
+
+</head>
+<body>
+
+<!-- PAYLOAD ID FRAME -->
+<fieldset>
+    <h2>Payload Identification</h2>
+    <label>Payload ID</label>
+    <input type="text" id="PayloadID" readonly>
+</fieldset>
+
+<!-- TOP FRAME -->
+<fieldset>
+    <h2>Payload Details</h2>
+    <div class="grid-2">
+        <div>
+            <label>Filename</label>
+            <input type="text" id="Filename">
+            <label>OEM</label>
+            <input type="text" id="OEM">
+            <label>Component</label>
+            <input type="text" id="Component">
+        </div>
+        <div>
+            <label>Installer Type</label>
+            <input type="text" id="InstallerType">
+            <label>Installer File</label>
+            <input type="text" id="InstallerFile">
+            <label>Reported Version</label>
+            <input type="text" id="ReportedVersion">
+        </div>
+    </div>
+    <label style="margin-top:12px;">URL Path</label>
+    <input type="text" id="URLPath">
+</fieldset>
+
+<!-- STATIONS / PROGRAMS -->
+<fieldset>
+    <h2>Available Targets</h2>
+    <div class="grid-2">
+        <div>
+            <h3>Available Stations</h3>
+            <button onclick="loadCSV('stations')">Load Stations</button>
+            <div class="list-box" id="stationList"></div>
+        </div>
+        <div>
+            <h3>Available Programs</h3>
+            <button onclick="loadCSV('programs')">Load Programs</button>
+            <div class="list-box" id="programList"></div>
+        </div>
+    </div>
+</fieldset>
+
+<!-- PREREQUISITES -->
+<fieldset>
+    <h2>Payload Prerequisites</h2>
+    <label>
+        <input type="checkbox" id="chkPrereq" onclick="togglePrereqs()"> Enable
+    </label>
+    <div id="prereqContainer" style="display:none; margin-top:10px;">
+        <button onclick="addPrereqRow()">Add Row</button>
+        <table id="prereqTable">
+            <tr>
+                <th>Component</th>
+                <th>CompareStr</th>
+                <th>RequiredVersion</th>
+            </tr>
+            <tr>
+                <td><input type="text" value="bios"></td>
+                <td><input type="text" value="-gte"></td>
+                <td><input type="text" value="y88 99.10.11"></td>
+            </tr>
+        </table>
+    </div>
+</fieldset>
+
+<!-- BUTTONS -->
+<div>
+    <button style="background:#ccc;">Cancel</button>
+    <button style="background:#4CAF50; color:white;" onclick="saveJSON()">GO!</button>
+</div>
+
+</body>
+</html>
