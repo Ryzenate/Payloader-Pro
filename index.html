@@ -13,6 +13,8 @@
 <div class="container">
     <h1>Driver/BIOS Update Pipeline</h1>
     
+    <button onclick="testConnection()" style="background-color: #4CAF50; color: white;">Test Connection</button>
+    
     <label>Azure Storage Container (Blob):</label>
     <input type="text" id="containerName" placeholder="e.g., driver-updates" style="width: 100%; margin: 10px 0;">
     
@@ -25,10 +27,23 @@
 </div>
 
 <script>
-    const FUNCTION_URL = window.location.protocol === 'file:'
-        ? "https://payloaderpro.azurewebsites.net/api/processUpdate"
-        : `${window.location.origin}/api/processUpdate`;
+    // Always use the Azure Function App endpoint, not the Static Web App
+    const FUNCTION_URL = "https://payloaderpro.azurewebsites.net/api/processUpdate";
+    const HEALTH_URL = "https://payloaderpro.azurewebsites.net/api/health";
 
+    async function testConnection() {
+        document.getElementById('status').innerHTML = 'Testing connection...';
+        console.log('Testing health check at:', HEALTH_URL);
+        try {
+            const response = await fetch(HEALTH_URL, { mode: 'cors' });
+            const data = await response.json();
+            document.getElementById('status').innerHTML = `✅ Connection OK: ${data.message}`;
+            console.log('Health check response:', data);
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            document.getElementById('status').innerHTML = `❌ Connection failed: ${error.message}. Function URL: ${HEALTH_URL}`;
+        }
+    }
 
     async function processUpdate() {
         const container = document.getElementById('containerName').value;
@@ -40,10 +55,12 @@
         }
         
         document.getElementById('status').innerHTML = 'Processing... This may take a few minutes.';
+        console.log('Calling function URL:', FUNCTION_URL);
         
         try {
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
+                mode: 'cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     containerName: container,
@@ -71,7 +88,17 @@
             document.getElementById('status').innerHTML = 
                 `✅ Complete! Output in ${container}/out/${result.outputFile}`;
         } catch (error) {
-            document.getElementById('status').innerHTML = `❌ Error: ${error.message}`;
+            console.error('Fetch error:', error);
+            console.error('Error stack:', error.stack);
+            let errorMsg = error.message;
+            if (error.message === 'Failed to fetch') {
+                if (window.location.protocol === 'file:') {
+                    errorMsg = 'Cannot fetch from file:// protocol. Run from a local server: python -m http.server 8000, then visit http://localhost:8000/index.html';
+                } else {
+                    errorMsg = `Failed to connect to ${FUNCTION_URL}. Ensure Azure Function is running and CORS is enabled.`;
+                }
+            }
+            document.getElementById('status').innerHTML = `❌ Error: ${errorMsg}`;
         }
     }
 </script>

@@ -11,7 +11,23 @@ from azure.storage.blob import BlobServiceClient
 
 app = func.FunctionApp()
 
-@app.route(route="processUpdate", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="health", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def health(req: func.HttpRequest) -> func.HttpResponse:
+    """Health check endpoint"""
+    response = func.HttpResponse(json.dumps({"status": "ok", "message": "Azure Function is running"}), mimetype="application/json", status_code=200)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
+@app.route(route="processUpdate", methods=["OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def processUpdate_options(req: func.HttpRequest) -> func.HttpResponse:
+    """Handle CORS preflight requests"""
+    response = func.HttpResponse("OK", status_code=200)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+@app.route(route="processUpdate", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def processUpdate(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Parse request
@@ -118,7 +134,7 @@ def processUpdate(req: func.HttpRequest) -> func.HttpResponse:
             
             logging.info(f"Successfully processed {source_blob_path}")
             
-            return func.HttpResponse(
+            response = func.HttpResponse(
                 json.dumps({
                     "status": "success",
                     "outputFile": output_zip_name,
@@ -129,10 +145,18 @@ def processUpdate(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
                 status_code=200
             )
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            return response
             
     except Exception as e:
         logging.error(f"Error processing update: {str(e)}")
-        return func.HttpResponse(f"Error: {str(e)}", status_code=500)
+        response = func.HttpResponse(f"Error: {str(e)}", status_code=500)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
 
 
 def analyze_installer(extract_path: Path) -> dict:
