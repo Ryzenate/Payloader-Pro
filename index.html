@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Driver/BIOS Update Pipeline</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .container { max-width: 800px; margin: auto; }
+        button { padding: 10px; margin: 10px 0; }
+        #status { margin-top: 20px; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Driver/BIOS Update Pipeline</h1>
+    
+    <label>Azure Storage Container (Blob):</label>
+    <input type="text" id="containerName" placeholder="e.g., driver-updates" style="width: 100%; margin: 10px 0;">
+    
+    <label>Select ZIP File:</label>
+    <input type="text" id="blobPath" placeholder="folder/my-update.zip" style="width: 100%; margin: 10px 0;">
+    
+    <button onclick="processUpdate()">Process Update</button>
+    
+    <div id="status">Ready</div>
+</div>
+
+<script>
+    const FUNCTION_URL = 'https://your-function-app.azurewebsites.net/api/processUpdate';
+
+    async function processUpdate() {
+        const container = document.getElementById('containerName').value;
+        const blobPath = document.getElementById('blobPath').value;
+        
+        if (!container || !blobPath) {
+            alert('Please enter container name and blob path');
+            return;
+        }
+        
+        document.getElementById('status').innerHTML = 'Processing... This may take a few minutes.';
+        
+        try {
+            const response = await fetch(FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    containerName: container,
+                    sourceBlobPath: blobPath
+                })
+            });
+            
+            const result = await response.json();
+            document.getElementById('status').innerHTML = 
+                `✅ Complete! Output in ${container}/out/${result.outputFile}`;
+        } catch (error) {
+            document.getElementById('status').innerHTML = `❌ Error: ${error.message}`;
+        }
+    }
+</script>
+</body>
+</html>
