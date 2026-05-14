@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payloader Pro</title>
+<style>
+  :root {
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --border: #d0cec6;
+    --border-focus: #7f77dd;
+    --text: #1a1a18;
+    --text-muted: #5f5e5a;
+    --accent: #534ab7;
+    --accent-hover: #3c3489;
+    --success: #3b6d11;
+    --success-bg: #eaf3de;
+    --radius: 6px;
+    --font: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    background: var(--accent);
+    color: #fff;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    border-bottom: 2px solid var(--accent-hover);
+  }
+  .app-header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+  .header-pill {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    letter-spacing: .05em;
+  }
+
+  /* ── Layout ── */
+  .page {
+    max-width: 860px;
+    margin: 2rem auto;
+    padding: 0 1.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* ── Sections ── */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .section-header {
+    background: #f0efe9;
+    border-bottom: 1px solid var(--border);
+    padding: .6rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-header h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .section-header .section-icon {
+    width: 18px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .section-header .section-icon svg { width: 10px; height: 10px; fill: #fff; }
+
+  .section-body { padding: 1.25rem; }
+
+  /* ── ID Badge ── */
+  .payload-id-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f0efe9;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .5rem .875rem;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .05em;
+  }
+  .id-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .id-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-right: 4px;
+  }
+
+  /* ── Form Grid ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .form-grid.full { grid-template-columns: 1fr; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-muted);
+  }
+
+  select, input[type="text"] {
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13.5px;
+    padding: 0 .75rem;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: border-color .15s;
+  }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235f5e5a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .75rem center;
+    padding-right: 2rem;
+    cursor: pointer;
+  }
+  select:focus, input[type="text"]:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(127,119,221,.12);
+  }
+  select:hover, input[type="text"]:hover { border-color: #a09fa0; }
+
+  /* ── Targets Split ── */
+  .targets-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .target-panel h3 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-muted);
+    margin-bottom: .75rem;
+  }
+
+  /* ── Load Btn ── */
+  .btn-load {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f0efe9;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    margin-bottom: .75rem;
+  }
+  .btn-load:hover { background: #e7e6de; border-color: #b0aea6; }
+  .btn-load svg { width: 12px; height: 12px; stroke: var(--text-muted); }
+
+  /* ── Checklist Table ── */
+  .check-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  .check-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-muted);
+    padding: 4px 6px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .check-table tbody tr { border-bottom: 1px solid #f0efe9; }
+  .check-table tbody tr:last-child { border-bottom: none; }
+  .check-table tbody tr:hover { background: #fafaf8; }
+  .check-table td { padding: 7px 6px; vertical-align: middle; }
+  .check-table td:first-child { width: 36px; text-align: center; }
+
+  .check-table input[type="checkbox"] {
+    width: 15px; height: 15px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .badge-viewable {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    padding: 2px 7px;
+    border-radius: 10px;
+    text-transform: uppercase;
+  }
+  .badge-yes { background: var(--success-bg); color: var(--success); }
+  .badge-no  { background: #f1efea; color: var(--text-muted); }
+
+  /* ── Prerequisites ── */
+  .prereq-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+  .prereq-header label { font-size: 13px; color: var(--text); cursor: pointer; font-weight: 500; }
+  input[type="checkbox"].toggle { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+
+  .prereq-table { width: 100%; border-collapse: collapse; }
+  .prereq-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-muted);
+    padding: 4px 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .prereq-table tbody td { padding: 6px 4px; }
+  .prereq-table tbody tr { border-bottom: 1px solid #f0efe9; }
+  .prereq-table tbody tr:last-child { border-bottom: none; }
+  .prereq-table select, .prereq-table input[type="text"] { height: 32px; font-size: 12.5px; }
+
+  .btn-add-row {
+    margin-top: .875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .btn-add-row:hover { border-color: var(--border-focus); color: var(--accent); }
+  .btn-add-row svg { width: 12px; height: 12px; stroke: currentColor; }
+
+  .btn-del-row {
+    background: none; border: none; cursor: pointer; padding: 2px 4px;
+    color: #b4b2a9;
+    transition: color .12s;
+  }
+  .btn-del-row:hover { color: #e24b4a; }
+  .btn-del-row svg { width: 12px; height: 12px; stroke: currentColor; display: block; }
+
+  /* ── Footer Actions ── */
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 1rem 0 0;
+  }
+  .btn-cancel {
+    padding: 0 1.25rem;
+    height: 38px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .btn-cancel:hover { background: #f0efe9; }
+
+  .btn-go {
+    padding: 0 1.5rem;
+    height: 38px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: .02em;
+    transition: background .12s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-go:hover { background: var(--accent-hover); }
+  .btn-go svg { width: 14px; height: 14px; stroke: #fff; }
+
+  .status-msg {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Loading skeleton ── */
+  .skeleton-row {
+    height: 32px;
+    background: linear-gradient(90deg, #f0efe9 25%, #e7e6de 50%, #f0efe9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: var(--radius);
+    margin: 4px 0;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #26215c;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: .6rem 1rem;
+    border-radius: var(--radius);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+    z-index: 999;
+    max-width: 320px;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Payloader Pro</h1>
+  <span class="header-pill" id="env-pill">ENV: LOCAL</span>
+</header>
+
+<main class="page">
+
+  <!-- PAYLOAD IDENTIFICATION -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">
+        <svg viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1" stroke="none"/></svg>
+      </div>
+      <h2>Payload Identification</h2>
+    </div>
+    <div class="section-body">
+      <div class="field">
+        <label>Payload ID</label>
+        <div class="payload-id-display">
+          <span class="id-label">ID</span>
+          <div class="id-dot"></div>
+          <span id="payload-id-value">Generating…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYLOAD DETAILS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">
+        <svg viewBox="0 0 12 12"><path d="M2 2h8v2H2zM2 6h6v1H2zM2 9h4v1H2z" stroke="none"/></svg>
+      </div>
+      <h2>Payload Details</h2>
+    </div>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Filename</label>
+          <select id="sel-filename"><option value="">— select —</option></select>
+        </div>
+        <div class="field">
+          <label>Installer Type</label>
+          <select id="sel-installer-type"><option value="">— select —</option></select>
+        </div>
+        <div class="field">
+          <label>OEM</label>
+          <select id="sel-oem"><option value="">— select —</option></select>
+        </div>
+        <div class="field">
+          <label>Installer File</label>
+          <select id="sel-installer-file"><option value="">— select —</option></select>
+        </div>
+        <div class="field">
+          <label>Component</label>
+          <select id="sel-component"><option value="">— select —</option></select>
+        </div>
+        <div class="field">
+          <label>Reported Version</label>
+          <select id="sel-reported-version"><option value="">— select —</option></select>
+        </div>
+      </div>
+      <div class="form-grid full" style="margin-top:1rem">
+        <div class="field">
+          <label>URL Path</label>
+          <select id="sel-url-path"><option value="">— select —</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVAILABLE TARGETS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">
+        <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" stroke="none"/></svg>
+      </div>
+      <h2>Available Targets</h2>
+    </div>
+    <div class="section-body">
+      <div class="targets-split">
+
+        <div class="target-panel">
+          <h3>Available Stations</h3>
+          <button class="btn-load" onclick="loadStations()">
+            <svg viewBox="0 0 12 12" fill="none" stroke-width="1.5"><path d="M6 1v7M3 5l3 3 3-3M1 10h10"/></svg>
+            Load Stations
+          </button>
+          <table class="check-table" id="stations-table">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Name</th>
+                <th>User</th>
+                <th>Viewable</th>
+              </tr>
+            </thead>
+            <tbody id="stations-body">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem;font-size:12px;">Click Load Stations to populate</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="target-panel">
+          <h3>Available Programs</h3>
+          <button class="btn-load" onclick="loadPrograms()">
+            <svg viewBox="0 0 12 12" fill="none" stroke-width="1.5"><path d="M6 1v7M3 5l3 3 3-3M1 10h10"/></svg>
+            Load Programs
+          </button>
+          <table class="check-table" id="programs-table">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Name</th>
+                <th>User</th>
+                <th>Viewable</th>
+              </tr>
+            </thead>
+            <tbody id="programs-body">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem;font-size:12px;">Click Load Programs to populate</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYLOAD PREREQUISITES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">
+        <svg viewBox="0 0 12 12"><path d="M1 3h10M1 6h7M1 9h4" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <h2>Payload Prerequisites</h2>
+    </div>
+    <div class="section-body">
+      <div class="prereq-header">
+        <input type="checkbox" class="toggle" id="prereq-enable" checked>
+        <label for="prereq-enable">Enable prerequisite checks</label>
+      </div>
+      <div id="prereq-content">
+        <table class="prereq-table">
+          <thead>
+            <tr>
+              <th style="width:35%">Component</th>
+              <th style="width:28%">CompareStr</th>
+              <th style="width:30%">RequiredVersion</th>
+              <th style="width:7%"></th>
+            </tr>
+          </thead>
+          <tbody id="prereq-body"></tbody>
+        </table>
+        <button class="btn-add-row" onclick="addPrereqRow()">
+          <svg viewBox="0 0 12 12" fill="none" stroke-width="1.5"><path d="M6 1v10M1 6h10"/></svg>
+          Add Row
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="footer-actions">
+    <button class="btn-cancel" onclick="handleCancel()">Cancel</button>
+    <button class="btn-go" onclick="handleGo()">
+      GO
+      <svg viewBox="0 0 14 14" fill="none" stroke-width="2"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
+    </button>
+    <span class="status-msg" id="status-msg"></span>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────
+// Point these at your actual CSV paths (relative or absolute)
+const CSV = {
+  details:    'data/payload_details.csv',
+  stations:   'data/stations.csv',
+  programs:   'data/programs.csv',
+  prereqComp: 'data/prereq_components.csv',
+};
+
+// ── ID Generation ───────────────────────────────────────
+function genPayloadId() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let id = 'PL-';
+  for (let i = 0; i < 8; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
+}
+document.getElementById('payload-id-value').textContent = genPayloadId();
+
+// ── CSV Parser ──────────────────────────────────────────
+async function parseCSV(path) {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    return lines.slice(1).map(line => {
+      const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      return Object.fromEntries(headers.map((h, i) => [h, vals[i] || '']));
+    });
+  } catch (e) {
+    console.warn('CSV load failed:', path, e.message);
+    return null;
+  }
+}
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">— select —</option>';
+  [...new Set(values)].filter(Boolean).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Payload Details ─────────────────────────────────────
+// FALLBACK demo data (used when CSVs aren't present)
+const DEMO_DETAILS = [
+  { filename: 'newbiosfile.zip', oem: 'ASUS', component: 'BIOS', installerType: 'Winflash', installerFile: 'Install.bat', reportedVersion: 'UG788A.305', urlPath: 'https://blablbaalb.newpayload.zip' },
+  { filename: 'gfx_driver.zip',  oem: 'AMD',  component: 'GFX',  installerType: 'Setup.exe',installerFile: 'setup.exe',  reportedVersion: '32.22.20010.233', urlPath: 'https://cdn.oem.example/gfx.zip' },
+  { filename: 'audio_pkg.zip',   oem: 'Dell', component: 'Audio',installerType: 'INF',       installerFile: 'audio.inf',  reportedVersion: '10.0.19041.1',    urlPath: 'https://cdn.oem.example/audio.zip' },
+];
+
+async function initDetails() {
+  const rows = await parseCSV(CSV.details) || DEMO_DETAILS;
+
+  // Map CSV columns — adjust header names to match YOUR csv
+  const col = (row, ...keys) => keys.map(k => row[k] || row[k.toLowerCase()] || '').find(Boolean) || '';
+
+  const f = r => col(r, 'filename', 'Filename', 'file_name');
+  const o = r => col(r, 'oem', 'OEM');
+  const c = r => col(r, 'component', 'Component');
+  const it = r => col(r, 'installerType', 'installer_type', 'InstallerType');
+  const if_ = r => col(r, 'installerFile', 'installer_file', 'InstallerFile');
+  const rv = r => col(r, 'reportedVersion', 'reported_version', 'ReportedVersion');
+  const up = r => col(r, 'urlPath', 'url_path', 'URLPath', 'url');
+
+  populateSelect('sel-filename',        rows.map(f));
+  populateSelect('sel-oem',             rows.map(o));
+  populateSelect('sel-component',       rows.map(c));
+  populateSelect('sel-installer-type',  rows.map(it));
+  populateSelect('sel-installer-file',  rows.map(if_));
+  populateSelect('sel-reported-version',rows.map(rv));
+  populateSelect('sel-url-path',        rows.map(up));
+}
+initDetails();
+
+// ── Stations ────────────────────────────────────────────
+const DEMO_STATIONS = [
+  { name: 'AustinStation', user: 'jdoe',   viewable: 'yes' },
+  { name: 'DallasStation', user: 'asmith', viewable: 'no'  },
+  { name: 'DenverStation', user: 'rlee',   viewable: 'yes' },
+];
+
+async function loadStations() {
+  const tbody = document.getElementById('stations-body');
+  tbody.innerHTML = '<tr><td colspan="4"><div class="skeleton-row"></div><div class="skeleton-row" style="width:80%"></div></td></tr>';
+  const rows = await parseCSV(CSV.stations) || DEMO_STATIONS;
+  renderCheckTable(tbody, rows, 'name', 'user', 'viewable');
+}
+
+// ── Programs ────────────────────────────────────────────
+const DEMO_PROGRAMS = [
+  { name: 'Canary', user: 'all', viewable: 'yes' },
+  { name: 'CSM',    user: 'all', viewable: 'yes' },
+  { name: 'Stable', user: 'all', viewable: 'yes' },
+];
+
+async function loadPrograms() {
+  const tbody = document.getElementById('programs-body');
+  tbody.innerHTML = '<tr><td colspan="4"><div class="skeleton-row"></div><div class="skeleton-row" style="width:80%"></div></td></tr>';
+  const rows = await parseCSV(CSV.programs) || DEMO_PROGRAMS;
+  renderCheckTable(tbody, rows, 'name', 'user', 'viewable');
+}
+
+function renderCheckTable(tbody, rows, nameKey, userKey, viewKey) {
+  const nameK = key => rows[0] ? (Object.keys(rows[0]).find(k => k.toLowerCase() === key.toLowerCase()) || key) : key;
+  const nk = nameK(nameKey), uk = nameK(userKey), vk = nameK(viewKey);
+  tbody.innerHTML = '';
+  rows.forEach((r, i) => {
+    const viewable = (r[vk] || '').toLowerCase();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" ${i === 0 ? 'checked' : ''}></td>
+      <td>${r[nk] || ''}</td>
+      <td style="color:var(--text-muted)">${r[uk] || ''}</td>
+      <td><span class="badge-viewable badge-${viewable === 'yes' ? 'yes' : 'no'}">${viewable || '—'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Prerequisites ───────────────────────────────────────
+const DEMO_PREREQ_COMPS = ['bios', 'gfx', 'audio', 'chipset', 'firmware'];
+const COMPARE_OPS = [
+  { value: '-gt',  label: 'Newer than' },
+  { value: '-gte', label: 'Newer than or equal to' },
+  { value: '-lt',  label: 'Older than' },
+  { value: '-lte', label: 'Older than or equal to' },
+  { value: '-eq',  label: 'Equal to' },
+  { value: '-ne',  label: 'Not equal to' },
+];
+
+let prereqCompOptions = DEMO_PREREQ_COMPS;
+
+async function initPrereqs() {
+  const rows = await parseCSV(CSV.prereqComp);
+  if (rows) {
+    const key = Object.keys(rows[0])[0];
+    prereqCompOptions = rows.map(r => r[key]).filter(Boolean);
+  }
+  addPrereqRow({ component: 'bios', compareStr: '-gt',  requiredVersion: 'UG788A.304' });
+  addPrereqRow({ component: 'gfx',  compareStr: '-gte', requiredVersion: '32.22.20010.233' });
+}
+
+function makeCompSelect(value) {
+  const sel = document.createElement('select');
+  prereqCompOptions.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    if (c === value) o.selected = true;
+    sel.appendChild(o);
+  });
+  return sel;
+}
+
+function makeOpSelect(value) {
+  const sel = document.createElement('select');
+  COMPARE_OPS.forEach(({ value: v, label }) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = label;
+    if (v === value) o.selected = true;
+    sel.appendChild(o);
+  });
+  return sel;
+}
+
+function addPrereqRow(defaults = {}) {
+  const tbody = document.getElementById('prereq-body');
+  const tr = document.createElement('tr');
+
+  const tdComp = document.createElement('td');
+  tdComp.appendChild(makeCompSelect(defaults.component || ''));
+
+  const tdOp = document.createElement('td');
+  const opSel = makeOpSelect(defaults.compareStr || '-gt');
+  tdOp.appendChild(opSel);
+
+  const tdVer = document.createElement('td');
+  const verInput = document.createElement('input');
+  verInput.type = 'text';
+  verInput.value = defaults.requiredVersion || '';
+  verInput.placeholder = 'e.g. 10.0.19041.1';
+  tdVer.appendChild(verInput);
+
+  const tdDel = document.createElement('td');
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-del-row';
+  delBtn.title = 'Remove row';
+  delBtn.innerHTML = `<svg viewBox="0 0 12 12" fill="none" stroke-width="1.5"><path d="M2 3h8M5 3V2h2v1M4 3v6M6 3v6M8 3v6"/></svg>`;
+  delBtn.onclick = () => tr.remove();
+  tdDel.appendChild(delBtn);
+
+  tr.append(tdComp, tdOp, tdVer, tdDel);
+  tbody.appendChild(tr);
+}
+
+document.getElementById('prereq-enable').addEventListener('change', function() {
+  document.getElementById('prereq-content').style.opacity = this.checked ? '1' : '.4';
+  document.getElementById('prereq-content').style.pointerEvents = this.checked ? '' : 'none';
+});
+
+initPrereqs();
+
+// ── Actions ─────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+
+function collectPayload() {
+  const get = id => document.getElementById(id)?.value || '';
+  const stations = [...document.querySelectorAll('#stations-body input[type=checkbox]:checked')]
+    .map(cb => cb.closest('tr').cells[1].textContent.trim());
+  const programs = [...document.querySelectorAll('#programs-body input[type=checkbox]:checked')]
+    .map(cb => cb.closest('tr').cells[1].textContent.trim());
+  const prereqs = [...document.querySelectorAll('#prereq-body tr')].map(tr => ({
+    component:       tr.cells[0]?.querySelector('select')?.value,
+    compareStr:      tr.cells[1]?.querySelector('select')?.value,
+    requiredVersion: tr.cells[2]?.querySelector('input')?.value,
+  }));
+
+  return {
+    payloadId:       document.getElementById('payload-id-value').textContent,
+    filename:        get('sel-filename'),
+    oem:             get('sel-oem'),
+    component:       get('sel-component'),
+    installerType:   get('sel-installer-type'),
+    installerFile:   get('sel-installer-file'),
+    reportedVersion: get('sel-reported-version'),
+    urlPath:         get('sel-url-path'),
+    targets:         { stations, programs },
+    prerequisites: {
+      enabled: document.getElementById('prereq-enable').checked,
+      rules: prereqs,
+    },
+  };
+}
+
+function handleCancel() {
+  if (confirm('Discard changes and reset?')) location.reload();
+}
+
+async function handleGo() {
+  const payload = collectPayload();
+  if (!payload.filename) { showToast('⚠ Select a filename before continuing'); return; }
+
+  setStatus('Submitting…');
+  console.log('[PayloaderPro] Payload:', JSON.stringify(payload, null, 2));
+
+  // TODO: replace with your API endpoint
+  // const res = await fetch('/api/payloads', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  // const data = await res.json();
+  // if (res.ok) showToast(`✓ Manifest created: ${data.manifestId}`);
+  // else showToast(`Error: ${data.error}`);
+
+  showToast(`✓ Payload ${payload.payloadId} queued — integrate /api/payloads to push`);
+  setStatus(`Ready · ${payload.payloadId}`);
+}
+</script>
+</body>
+</html>
