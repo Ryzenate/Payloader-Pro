@@ -25,7 +25,10 @@
 </div>
 
 <script>
-    const FUNCTION_URL = 'https://your-function-app.azurewebsites.net/api/processUpdate';
+    const FUNCTION_URL = window.location.protocol === 'file:'
+        ? "https://payloaderpro.azurewebsites.net/api/processUpdate"
+        : `${window.location.origin}/api/processUpdate`;
+
 
     async function processUpdate() {
         const container = document.getElementById('containerName').value;
@@ -47,8 +50,24 @@
                     sourceBlobPath: blobPath
                 })
             });
-            
-            const result = await response.json();
+
+            const text = await response.text();
+            let result = null;
+            try {
+                result = JSON.parse(text);
+            } catch (parseError) {
+                // If the response is not JSON, keep the raw text for diagnostics.
+            }
+
+            if (!response.ok) {
+                const serverMessage = result?.message || result?.error || text || response.statusText;
+                throw new Error(`HTTP ${response.status}: ${serverMessage}`);
+            }
+
+            if (!result || !result.outputFile) {
+                throw new Error(`Invalid response from server: ${text}`);
+            }
+
             document.getElementById('status').innerHTML = 
                 `✅ Complete! Output in ${container}/out/${result.outputFile}`;
         } catch (error) {
