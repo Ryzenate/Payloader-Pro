@@ -1,0 +1,230 @@
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+    <div class="frame">
+        <div class="frame-title">Package Selection</div>
+        <div class="form-group">
+            <label for="folderSelect">Select Folder</label>
+            <select id="folderSelect"><option value="">-- Loading... --</option></select>
+        </div>
+        <div class="form-group">
+            <label for="fileSelect">Select File</label>
+            <select id="fileSelect" disabled><option value="">-- Select a folder first --</option></select>
+        </div>
+        <button id="loadManifestBtn" class="btn btn-primary" style="margin-top: 4px;">Load Manifest</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="frame">
+            <div class="frame-title">Package Details</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                <div class="form-group">
+                    <label for="oemInput">OEM</label>
+                    <input type="text" id="oemInput" placeholder="e.g., HP" />
+                </div>
+                <div class="form-group">
+                    <label for="componentInput">Component</label>
+                    <input type="text" id="componentInput" placeholder="e.g., BIOS" />
+                </div>
+                <div class="form-group">
+                    <label for="versionInput">Version</label>
+                    <input type="text" id="versionInput" placeholder="e.g., Y88 99.30.20" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="nameInput">Name</label>
+                <input type="text" id="nameInput" placeholder="e.g., HP BIOS Update" />
+            </div>
+        </div>
+
+        <div class="frame">
+            <div class="frame-title">Options</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                    <input type="checkbox" id="prereqCheckbox" /> Enable Prerequisites
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                    <input type="checkbox" id="stationsCheckbox" /> Target Stations
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                    <input type="checkbox" id="programsCheckbox" /> Target Programs
+                </label>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="buildBtn" class="btn btn-primary">Build</button>
+        </div>
+        <div id="buildStatus" class="status"></div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const folderSelect = document.getElementById('folderSelect');
+        const fileSelect = document.getElementById('fileSelect');
+        const loadManifestBtn = document.getElementById('loadManifestBtn');
+        const buildBtn = document.getElementById('buildBtn');
+        
+        const stationsCheckbox = document.getElementById('stationsCheckbox');
+        const programsCheckbox = document.getElementById('programsCheckbox');
+
+        populateFolders();
+
+        function evaluateTargetingTabState() {
+            const tabTargeting = document.getElementById('tabTargeting');
+            if (stationsCheckbox.checked || programsCheckbox.checked) {
+                tabTargeting.disabled = false;
+            } else {
+                tabTargeting.disabled = true;
+                if(document.getElementById('tabTargeting').classList.contains('active')) {
+                    document.getElementById('tabBuild').click();
+                }
+            }
+        }
+
+        stationsCheckbox.addEventListener('change', evaluateTargetingTabState);
+        programsCheckbox.addEventListener('change', evaluateTargetingTabState);
+
+        folderSelect.addEventListener('change', async () => {
+            const folder = folderSelect.value;
+            fileSelect.innerHTML = '<option value="">-- Select File --</option>';
+            fileSelect.disabled = true;
+            if (!folder) return;
+
+            try {
+                const listUrl = new URL(window.AppState.baseUrl);
+                listUrl.searchParams.set('restype', 'container');
+                listUrl.searchParams.set('comp', 'list');
+                listUrl.searchParams.set('prefix', folder);
+
+                const response = await fetch(listUrl.toString());
+                const xmlText = await response.text();
+                const xml = new DOMParser().parseFromString(xmlText, 'text/xml');
+                
+                let latestZip = null;
+                let latestDate = new Date(0);
+                const blobs = xml.getElementsByTagName('Blob');
+
+                for (const blob of blobs) {
+                    const name = blob.getElementsByTagName('Name')[0]?.textContent || '';
+                    if (name.toLowerCase().endsWith('.zip')) {
+                        const modifiedStr = blob.getElementsByTagName('Last-Modified')[0]?.textContent;
+                        const modified = modifiedStr ? new Date(modifiedStr) : new Date(0);
+                        if (modified > latestDate) {
+                            latestDate = modified;
+                            latestZip = name;
+                        }
+                    }
+                }
+
+                if (latestZip) {
+                    const opt = document.createElement('option');
+                    opt.value = latestZip;
+                    opt.text = `${latestZip.split('/').pop()} (Latest)`;
+                    fileSelect.add(opt);
+                    fileSelect.disabled = false;
+                } else {
+                    fileSelect.innerHTML = '<option value="">No ZIP assets found</option>';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        loadManifestBtn.addEventListener('click', async () => {
+            const folder = folderSelect.value;
+            if (!folder) return;
+
+            showLocalStatus('buildStatus', 'Querying configuration items...', 'info');
+            
+            try {
+                const manifestUrl = new URL(window.AppState.baseUrl + '/' + folder + 'manifest.json');
+                const response = await fetch(manifestUrl.toString());
+                
+                if (response.ok) {
+                    const rawText = await response.text();
+                    const manifest = JSON.parse(rawText);
+                    
+                    document.getElementById('oemInput').value = manifest.oem || manifest.OEM || '';
+                    document.getElementById('componentInput').value = manifest.component || manifest.Component || '';
+                    document.getElementById('versionInput').value = manifest.version || manifest.Version || '';
+                    document.getElementById('nameInput').value = manifest.name || manifest.Name || '';
+                    
+                    window.AppState.manifestParsedSuccessfully = true;
+                    showLocalStatus('buildStatus', 'Manifest processed successfully.', 'success');
+                } else {
+                    throw new Error('manifest.json could not be located.');
+                }
+            } catch (e) {
+                window.AppState.manifestParsedSuccessfully = false;
+                showLocalStatus('buildStatus', `Lookup completed: ${e.message}`, 'error');
+            }
+
+            try {
+                const prereqUrl = new URL(window.AppState.baseUrl + '/' + folder + 'prereqs.json');
+                const prereqHead = await fetch(prereqUrl.toString(), { method: 'HEAD' });
+                document.getElementById('prereqCheckbox').checked = prereqHead.ok;
+            } catch(e) {}
+        });
+
+        buildBtn.addEventListener('click', () => { triggerJSONBuildProcess(); });
+
+        function triggerJSONBuildProcess() {
+            const taskData = {
+                folder: folderSelect.value,
+                file: fileSelect.value,
+                oem: document.getElementById('oemInput').value,
+                component: document.getElementById('componentInput').value,
+                version: document.getElementById('versionInput').value,
+                name: document.getElementById('nameInput').value,
+                enablePrerequisites: document.getElementById('prereqCheckbox').checked,
+                targeting: {
+                    targetStations: stationsCheckbox.checked,
+                    targetPrograms: programsCheckbox.checked,
+                    stationsList: window.AppState.selectedStations,
+                    programsList: window.AppState.selectedPrograms
+                },
+                generatedAt: new Date().toISOString()
+            };
+            executeExportPipeline(taskData);
+            showLocalStatus('buildStatus', 'task.json generated successfully.', 'success');
+        }
+
+        async function populateFolders() {
+            folderSelect.innerHTML = '<option value="">-- Select Folder --</option>';
+            try {
+                const basePrefix = window.AppState.formValues['baseFolder'] || '';
+                const listUrl = new URL(window.AppState.baseUrl);
+                listUrl.searchParams.set('restype', 'container');
+                listUrl.searchParams.set('comp', 'list');
+                if (basePrefix) listUrl.searchParams.set('prefix', basePrefix);
+
+                const response = await fetch(listUrl.toString());
+                const text = await response.text();
+                const xml = new DOMParser().parseFromString(text, 'text/xml');
+                const blobs = xml.getElementsByTagName('Blob');
+                const set = new Set();
+
+                for(let blob of blobs) {
+                    const name = blob.getElementsByTagName('Name')[0]?.textContent || '';
+                    const slashIdx = name.lastIndexOf('/');
+                    if (slashIdx > 0) set.add(name.substring(0, slashIdx + 1));
+                }
+
+                Array.from(set).sort().forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f; opt.text = f;
+                    folderSelect.add(opt);
+                });
+                
+                if (window.AppState.formValues['folderSelect']) {
+                    folderSelect.value = window.AppState.formValues['folderSelect'];
+                    folderSelect.dispatchEvent(new Event('change'));
+                }
+            } catch(e) {
+                folderSelect.innerHTML = '<option value="">-- Failed to process folders --</option>';
+            }
+        }
+
+        window.dispatchEvent(new CustomEvent('pageModuleReady'));
+    })();
+</script>

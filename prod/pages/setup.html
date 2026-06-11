@@ -1,0 +1,72 @@
+<div class="frame">
+    <div class="frame-title">Connect to Blob Storage Account</div>
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+        <div class="form-group">
+            <label for="containerUrl">Container SAS URL</label>
+            <input type="url" id="containerUrl" placeholder="https://<account>.blob.core.windows.net/<container>?<sas-token>" />
+        </div>
+        <div class="form-group">
+            <label for="baseFolder">Base Folder Prefix (Optional)</label>
+            <input type="text" id="baseFolder" placeholder="e.g., HP/BIOS/" />
+        </div>
+    </div>
+    <p class="helper-text" style="font-size: 11px; color: #666; margin-top: 3px; margin-bottom: 8px;">Paste the full SAS URL with restype=container&comp=list parameters.</p>
+    <button id="connectBtn" class="btn btn-primary">Connect</button>
+    <div id="connectionStatus" class="status"></div>
+</div>
+
+<script>
+    (function() {
+        const connectBtn = document.getElementById('connectBtn');
+        const containerUrlInput = document.getElementById('containerUrl');
+
+        if (!containerUrlInput.value) {
+            fetch('containme.nf')
+                .then(res => res.ok ? res.text() : '')
+                .then(rawText => {
+                    const cleanAscii = rawText.replace(/[^\x20-\x7E]/g, '').trim();
+                    if (cleanAscii) containerUrlInput.value = cleanAscii;
+                }).catch(() => {});
+        }
+
+        connectBtn.addEventListener('click', async () => {
+            const url = containerUrlInput.value.trim();
+            if (!url) {
+                showLocalStatus('connectionStatus', 'Please enter a Container SAS URL.', 'error');
+                return;
+            }
+
+            showLocalStatus('connectionStatus', 'Connecting...', 'info');
+            connectBtn.disabled = true;
+
+            try {
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+                if (pathParts.length === 0) throw new Error('Could not find container name in URL.');
+                
+                window.AppState.containerPath = '/' + pathParts[0];
+                const cleanUrl = new URL(url);
+                ['restype','comp','prefix','delimiter','marker','_'].forEach(p => cleanUrl.searchParams.delete(p));
+                window.AppState.baseUrl = cleanUrl.toString();
+
+                const listUrl = new URL(window.AppState.baseUrl);
+                listUrl.searchParams.set('restype', 'container');
+                listUrl.searchParams.set('comp', 'list');
+                listUrl.searchParams.set('maxresults', '1');
+                
+                const response = await fetch(listUrl.toString());
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                showLocalStatus('connectionStatus', 'Connected successfully! Build tab is unlocked.', 'success');
+                document.getElementById('tabBuild').disabled = false;
+            } catch (error) {
+                showLocalStatus('connectionStatus', `Connection failed: ${error.message}. Verify CORS settings or token validity.`, 'error');
+                document.getElementById('tabBuild').disabled = true;
+            } finally {
+                connectBtn.disabled = false;
+            }
+        });
+
+        window.dispatchEvent(new CustomEvent('pageModuleReady'));
+    })();
+</script>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payloader Pro - Enterprise Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f3f3;
+            color: #333;
+            padding: 15px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { text-align: center; color: #0078d4; margin-bottom: 15px; font-size: 24px; font-weight: 600; }
+        
+        /* Navigation Tabs */
+        .tab-navigation { display: flex; border-bottom: 2px solid #0078d4; margin-bottom: 15px; gap: 4px; }
+        .tab-btn {
+            padding: 8px 16px;
+            background: #e0e0e0;
+            border: none;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover:not(:disabled) { background: #d0d0d0; }
+        .tab-btn.active { background: #0078d4; color: white; }
+        .tab-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Layout Frames */
+        .frame { background: white; border-radius: 6px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px; }
+        .frame-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 10px; padding-bottom: 4px; border-bottom: 2px solid #0078d4; }
+        .form-group { margin-bottom: 8px; }
+        label { display: block; margin-bottom: 3px; font-size: 12px; color: #555; font-weight: 500; }
+        
+        input[type="text"], input[type="url"], select {
+            width: 100%; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+        }
+        
+        .btn { padding: 6px 14px; border: none; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background-color: #0078d4; color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: #106ebe; }
+        .btn-primary:disabled { background-color: #a0c4e4; cursor: not-allowed; }
+        .btn-secondary { background-color: #f0f0f0; color: #333; border: 1px solid #ccc; }
+        .btn-secondary:hover { background-color: #e0e0e0; }
+        
+        .status { margin-top: 8px; padding: 8px; border-radius: 4px; font-size: 12px; display: none; white-space: pre-wrap; }
+        .status.success { background-color: #dff6dd; color: #107c10; display: block; }
+        .status.error { background-color: #fde7e9; color: #a80000; display: block; }
+        .status.info { background-color: #eef6fc; color: #0078d4; display: block; }
+
+        /* Targeting Panel Component Multi-Select Lists */
+        .target-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .target-select { width: 100%; height: 250px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; padding: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Payloader Pro</h1>
+        
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-page="setup">Setup</button>
+            <button class="tab-btn" data-page="build" id="tabBuild" disabled>Build</button>
+            <button class="tab-btn" data-page="targeting" id="tabTargeting" disabled>Targeting</button>
+            <button class="tab-btn" data-page="groups" id="tabGroups" disabled>Groups</button>
+        </div>
+
+        <div id="view-port"></div>
+    </div>
+
+    <script>
+        // Global Shared Data Architecture States
+        window.AppState = {
+            baseUrl: '',
+            containerPath: '',
+            manifestParsedSuccessfully: false,
+            formValues: {},
+            selectedStations: [],
+            selectedPrograms: []
+        };
+
+        const viewPort = document.getElementById('view-port');
+        const tabButtons = document.querySelectorAll('.tab-btn');
+
+        // Dynamic Async Frame Ingestion Router Module
+        async function loadTab(pageName) {
+            try {
+                // Intercept volatile fields from the screen viewport before layout teardown
+                cacheCurrentFormInputs();
+
+                const response = await fetch(`pages/${pageName}.html`);
+                if (!response.ok) throw new Error(`Could not fetch the specified view layout template: ${response.statusText}`);
+                
+                const htmlContent = await response.text();
+                viewPort.innerHTML = htmlContent;
+
+                // Re-evaluate script nodes manually to force immediate engine compilation execution contexts
+                const scripts = viewPort.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    newScript.text = oldScript.text;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+
+                restoreFormInputs();
+            } catch (err) {
+                viewPort.innerHTML = `<div class="frame"><p style="color:red; font-weight:600;">Router Error: ${err.message}</p></div>`;
+            }
+        }
+
+        // Global Event Lifecycle Orchestration Hub
+        window.addEventListener('pageModuleReady', () => {
+            restoreFormInputs();
+        });
+
+        function cacheCurrentFormInputs() {
+            const inputs = viewPort.querySelectorAll('input[type="text"], input[type="url"], select, input[type="checkbox"]');
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') {
+                    window.AppState.formValues[input.id] = input.checked;
+                } else {
+                    window.AppState.formValues[input.id] = input.value;
+                }
+            });
+
+            const stationSel = document.getElementById('stationSelect');
+            const programSel = document.getElementById('programSelect');
+            if (stationSel) window.AppState.selectedStations = Array.from(stationSel.selectedOptions).map(o => o.value);
+            if (programSel) window.AppState.selectedPrograms = Array.from(programSel.selectedOptions).map(o => o.value);
+        }
+
+        function restoreFormInputs() {
+            const inputs = viewPort.querySelectorAll('input[type="text"], input[type="url"], select, input[type="checkbox"]');
+            inputs.forEach(input => {
+                if (window.AppState.formValues[input.id] !== undefined) {
+                    if (input.type === 'checkbox') {
+                        input.checked = window.AppState.formValues[input.id];
+                    } else {
+                        input.value = window.AppState.formValues[input.id];
+                    }
+                }
+            });
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                loadTab(button.getAttribute('data-page'));
+            });
+        });
+
+        // Initialize default runtime module target path mapping context rules
+        window.addEventListener('DOMContentLoaded', () => loadTab('setup'));
+
+        function showLocalStatus(id, message, type) {
+            const box = document.getElementById(id);
+            if (!box) return;
+            box.textContent = message;
+            box.className = `status ${type}`;
+        }
+
+        function executeExportPipeline(taskData) {
+            const jsonString = JSON.stringify(taskData, null, 2);
+            // Strict ASCII sanitation conversion safety
+            const asciiString = jsonString.replace(/[^\x00-\x7F]/g, "");
+
+            const blob = new Blob([asciiString], { type: 'application/json;charset=us-ascii' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'task.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
