@@ -19,14 +19,13 @@
         const stationSelect = document.getElementById('stationSelect');
         const programSelect = document.getElementById('programSelect');
 
-        // Safe parser for raw lines within INI layout configuration files
         function parseIniLines(text) {
             return text.split(/\r?\n/)
                 .map(line => line.trim())
                 .filter(line => line && !line.startsWith(';') && !line.startsWith('#'));
         }
 
-        fetch('stations.ini')
+        fetch(`${window.AppState.appRoot}stations.ini`)
             .then(res => res.ok ? res.text() : '')
             .then(data => {
                 stationSelect.innerHTML = '';
@@ -45,7 +44,7 @@
                 stationSelect.innerHTML = '<option disabled>stations.ini lookup skipped</option>';
             });
 
-        fetch('programs.ini')
+        fetch(`${window.AppState.appRoot}programs.ini`)
             .then(res => res.ok ? res.text() : '')
             .then(data => {
                 programSelect.innerHTML = '';

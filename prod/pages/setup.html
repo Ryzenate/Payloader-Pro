@@ -21,7 +21,7 @@
         const containerUrlInput = document.getElementById('containerUrl');
 
         if (!containerUrlInput.value) {
-            fetch('containme.nf')
+            fetch(`${window.AppState.appRoot}containme.nf`)
                 .then(res => res.ok ? res.text() : '')
                 .then(rawText => {
                     const cleanAscii = rawText.replace(/[^\x20-\x7E]/g, '').trim();

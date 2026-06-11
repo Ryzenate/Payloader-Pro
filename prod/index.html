@@ -75,8 +75,15 @@
     </div>
 
     <script>
+        // Calculate root path dynamically (e.g., returns "/prod/" or "/")
+        const getAppRoot = () => {
+            const path = window.location.pathname;
+            return path.substring(0, path.lastIndexOf('/') + 1);
+        };
+
         // Global Shared Data Architecture States
         window.AppState = {
+            appRoot: getAppRoot(),
             baseUrl: '',
             containerPath: '',
             manifestParsedSuccessfully: false,
@@ -88,14 +95,15 @@
         const viewPort = document.getElementById('view-port');
         const tabButtons = document.querySelectorAll('.tab-btn');
 
-        // Dynamic Async Frame Ingestion Router Module
+        // Dynamic Async Frame Ingestion Router Module using context path safely
         async function loadTab(pageName) {
             try {
                 // Intercept volatile fields from the screen viewport before layout teardown
                 cacheCurrentFormInputs();
 
-                const response = await fetch(`pages/${pageName}.html`);
-                if (!response.ok) throw new Error(`Could not fetch the specified view layout template: ${response.statusText}`);
+                const targetUrl = `${window.AppState.appRoot}pages/${pageName}.html`;
+                const response = await fetch(targetUrl);
+                if (!response.ok) throw new Error(`Could not fetch specified view layout template at ${targetUrl}: ${response.statusText}`);
                 
                 const htmlContent = await response.text();
                 viewPort.innerHTML = htmlContent;
@@ -168,7 +176,6 @@
 
         function executeExportPipeline(taskData) {
             const jsonString = JSON.stringify(taskData, null, 2);
-            // Strict ASCII sanitation conversion safety
             const asciiString = jsonString.replace(/[^\x00-\x7F]/g, "");
 
             const blob = new Blob([asciiString], { type: 'application/json;charset=us-ascii' });
