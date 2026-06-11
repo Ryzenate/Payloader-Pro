@@ -432,11 +432,16 @@
                 const response = await fetch(manifestUrl.toString());
                 if (response.ok) {
                     const manifest = await response.json();
-                    
-                    oemInput.value = manifest.oem || '';
-                    componentInput.value = manifest.component || '';
-                    versionInput.value = manifest.version || '';
-                    nameInput.value = manifest.name || '';
+                    console.log("** Fetched Manifest Data:", manifest);
+                    // Replace the old assignment lines with this fallback logic:
+                    oemInput.value = manifest.oem || manifest.OEM || '';
+                    componentInput.value = manifest.component || manifest.Component || '';
+                    versionInput.value = manifest.version || manifest.Version || '';
+                    nameInput.value = manifest.name || manifest.Name || '';
+                    // oemInput.value = manifest.oem || '';
+                    // componentInput.value = manifest.component || '';
+                    // versionInput.value = manifest.version || '';
+                    // nameInput.value = manifest.name || '';
                     manifestLoaded = true;
                 } else {
                     console.warn(`Manifest response issue: ${response.status}`);
