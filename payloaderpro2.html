@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Payloader Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --fg: #1f2933;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --border: #d0d7e2;
+      --danger: #dc2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      min-height: 100vh;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 960px;
+      margin: 16px;
+      padding: 16px 20px 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .title {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .frame {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #fafbff;
+    }
+
+    .frame-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #4b5563;
+      margin-bottom: 2px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .row.stretch > * {
+      flex: 1 1 200px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: #4b5563;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    input[type="text"],
+    select {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 0.9rem;
+      width: 100%;
+      min-width: 0;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+      outline: 2px solid var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .btn {
+      border-radius: 6px;
+      border: 1px solid transparent;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .checkbox-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .checkbox-row label {
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      margin-top: 4px;
+    }
+
+    .status {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    @media (max-width: 640px) {
+      .header {
+        align-items: flex-start;
+      }
+      .footer {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">Payloader Pro</div>
+        <div class="subtitle">Blob-backed payload selector</div>
+      </div>
+      <div class="row">
+        <label style="min-width: 220px;">
+          Blob container SAS URL
+          <input type="text" id="sasUrl" placeholder="https://account.blob.core.windows.net/container?sv=...&sig=..." />
+        </label>
+        <label style="min-width: 160px;">
+          Base folder (prefix)
+          <input type="text" id="baseFolder" placeholder="HP/BIOS/10001/" />
+        </label>
+        <button class="btn btn-primary" id="connectBtn">Connect</button>
+      </div>
+    </div>
+
+    <!-- Folder / file frame -->
+    <div class="frame">
+      <div class="frame-title">Source selection</div>
+      <div class="row stretch">
+        <label>
+          Select folder
+          <select id="folderSelect" disabled>
+            <option value="">Connect to load folders...</option>
+          </select>
+        </label>
+        <label>
+          Select file
+          <select id="fileSelect" disabled>
+            <option value="">Select a folder first...</option>
+          </select>
+        </label>
+      </div>
+      <div class="status" id="statusText"></div>
+    </div>
+
+    <!-- Metadata frame -->
+    <div class="frame">
+      <div class="frame-title">Metadata</div>
+      <div class="row stretch">
+        <label>
+          OEM
+          <select id="oemSelect">
+            <option value="">(auto from manifest)</option>
+          </select>
+        </label>
+        <label>
+          Component
+          <select id="componentSelect">
+            <option value="">(auto from manifest)</option>
+          </select>
+        </label>
+      </div>
+      <div class="row stretch">
+        <label>
+          Version
+          <input type="text" id="versionInput" />
+        </label>
+        <label>
+          Name
+          <input type="text" id="nameInput" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Options frame -->
+    <div class="frame">
+      <div class="frame-title">Options</div>
+      <div class="checkbox-row">
+        <label>
+          <input type="checkbox" id="enablePrereq" />
+          Enable Prerequisites
+        </label>
+        <label>
+          <input type="checkbox" id="addTargets" />
+          Add Targets
+        </label>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="resetBtn">Reset</button>
+      <button class="btn btn-primary" id="buildBtn">Build</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Helpers -------------------------------------------------------------
+
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById("statusText");
+      el.textContent = msg || "";
+      el.classList.toggle("error", !!isError);
+    }
+
+    function parseSasUrl(url) {
+      try {
+        const u = new URL(url);
+        const sas = u.search;
+        const base = u.origin + u.pathname;
+        return { base, sas };
+      } catch {
+        return null;
+      }
+    }
+
+    async function listFolders(sasUrl, basePrefix) {
+      const parsed = parseSasUrl(sasUrl);
+      if (!parsed) throw new Error("Invalid SAS URL");
+
+      const prefix = basePrefix || "";
+      const url =
+        parsed.base +
+        "?restype=container&comp=list&delimiter=/&prefix=" +
+        encodeURIComponent(prefix) +
+        parsed.sas;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("List blobs failed: " + res.status);
+
+      const text = await res.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "application/xml");
+
+      const prefixes = Array.from(xml.getElementsByTagName("BlobPrefix"));
+      const folders = prefixes
+        .map((p) => p.getElementsByTagName("Name")[0]?.textContent || "")
+        .filter(Boolean);
+
+      return folders;
+    }
+
+    async function listFilesInFolder(sasUrl, folderPrefix) {
+      const parsed = parseSasUrl(sasUrl);
+      if (!parsed) throw new Error("Invalid SAS URL");
+
+      const url =
+        parsed.base +
+        "?restype=container&comp=list&prefix=" +
+        encodeURIComponent(folderPrefix) +
+        parsed.sas;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("List blobs failed: " + res.status);
+
+      const text = await res.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "application/xml");
+
+      const blobs = Array.from(xml.getElementsByTagName("Blob")).map((b) => {
+        const name = b.getElementsByTagName("Name")[0]?.textContent || "";
+        const props = b.getElementsByTagName("Properties")[0];
+        const lastMod = props?.getElementsByTagName("Last-Modified")[0]?.textContent;
+        return { name, lastModified: lastMod ? new Date(lastMod) : null };
+      });
+
+      return blobs;
+    }
+
+    async function fetchJsonBlob(sasUrl, blobName) {
+      const parsed = parseSasUrl(sasUrl);
+      if (!parsed) throw new Error("Invalid SAS URL");
+      const url = parsed.base + "/" + encodeURIComponent(blobName) + parsed.sas;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch " + blobName + ": " + res.status);
+      return res.json();
+    }
+
+    function triggerDownload(filename, dataObj) {
+      const blob = new Blob([JSON.stringify(dataObj, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // --- UI wiring ----------------------------------------------------------
+
+    const connectBtn = document.getElementById("connectBtn");
+    const folderSelect = document.getElementById("folderSelect");
+    const fileSelect = document.getElementById("fileSelect");
+    const oemSelect = document.getElementById("oemSelect");
+    const componentSelect = document.getElementById("componentSelect");
+    const versionInput = document.getElementById("versionInput");
+    const nameInput = document.getElementById("nameInput");
+    const enablePrereq = document.getElementById("enablePrereq");
+    const addTargets = document.getElementById("addTargets");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const buildBtn = document.getElementById("buildBtn");
+    const sasUrlInput = document.getElementById("sasUrl");
+    const baseFolderInput = document.getElementById("baseFolder");
+
+    let currentSasUrl = "";
+    let currentBaseFolder = "";
+
+    connectBtn.addEventListener("click", async () => {
+      const sas = sasUrlInput.value.trim();
+      const base = baseFolderInput.value.trim();
+
+      if (!sas) {
+        setStatus("Enter a blob container SAS URL.", true);
+        return;
+      }
+
+      setStatus("Connecting and listing folders...");
+      connectBtn.disabled = true;
+      folderSelect.disabled = true;
+      fileSelect.disabled = true;
+      folderSelect.innerHTML = '<option value="">Loading...</option>';
+      fileSelect.innerHTML = '<option value="">Select a folder first...</option>';
+
+      try {
+        const folders = await listFolders(sas, base);
+        currentSasUrl = sas;
+        currentBaseFolder = base;
+
+        folderSelect.innerHTML = "";
+        if (!folders.length) {
+          folderSelect.innerHTML =
+            '<option value="">No folders found under base prefix.</option>';
+          folderSelect.disabled = true;
+        } else {
+          folderSelect.disabled = false;
+          folderSelect.appendChild(new Option("Select a folder...", "", true, false));
+          folders.forEach((f) => {
+            const label = f.replace(base, "") || f;
+            folderSelect.appendChild(new Option(label, f));
+          });
+        }
+        setStatus("Connected.");
+      } catch (e) {
+        console.error(e);
+        setStatus(e.message || "Failed to connect.", true);
+        folderSelect.innerHTML =
+          '<option value="">Connect to load folders...</option>';
+      } finally {
+        connectBtn.disabled = false;
+      }
+    });
+
+    folderSelect.addEventListener("change", async () => {
+      const folder = folderSelect.value;
+      fileSelect.disabled = true;
+      fileSelect.innerHTML = '<option value="">Loading files...</option>';
+      setStatus("");
+
+      if (!folder) {
+        fileSelect.innerHTML = '<option value="">Select a folder first...</option>';
+        return;
+      }
+
+      try {
+        const blobs = await listFilesInFolder(currentSasUrl, folder);
+        const zips = blobs.filter((b) => b.name.toLowerCase().endsWith(".zip"));
+        if (!zips.length) {
+          fileSelect.innerHTML =
+            '<option value="">No .zip files found in folder.</option>';
+          return;
+        }
+
+        zips.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+        fileSelect.innerHTML = "";
+        zips.forEach((z, idx) => {
+          const label = z.name.substring(folder.length);
+          fileSelect.appendChild(
+            new Option(
+              idx === 0 ? label + " (latest)" : label,
+              z.name,
+              idx === 0,
+              idx === 0
+            )
+          );
+        });
+        fileSelect.disabled = false;
+
+        // Auto-load manifest for the folder
+        const manifestName = folder.replace(/\/?$/, "/") + "manifest.json";
+        try {
+          const manifest = await fetchJsonBlob(currentSasUrl, manifestName);
+          applyManifest(manifest);
+          setStatus("Loaded latest zip and manifest.");
+        } catch (e) {
+          console.warn("Manifest load failed:", e);
+          setStatus("Zip list loaded. Manifest not found or invalid.", true);
+        }
+      } catch (e) {
+        console.error(e);
+        setStatus(e.message || "Failed to list files.", true);
+        fileSelect.innerHTML =
+          '<option value="">Failed to load files.</option>';
+      }
+    });
+
+    function applyManifest(manifest) {
+      const { oem, component, name, version, prerequisites } = manifest || {};
+
+      // OEM
+      oemSelect.innerHTML = "";
+      oemSelect.appendChild(new Option("(auto from manifest)", "", !oem, !oem));
+      if (oem) {
+        oemSelect.appendChild(new Option(oem, oem, true, true));
+      }
+
+      // Component
+      componentSelect.innerHTML = "";
+      componentSelect.appendChild(
+        new Option("(auto from manifest)", "", !component, !component)
+      );
+      if (component) {
+        componentSelect.appendChild(
+          new Option(component, component, true, true)
+        );
+      }
+
+      versionInput.value = version || "";
+      nameInput.value = name || "";
+      enablePrereq.checked = !!prerequisites;
+    }
+
+    resetBtn.addEventListener("click", () => {
+      folderSelect.selectedIndex = 0;
+      fileSelect.innerHTML =
+        '<option value="">Select a folder first...</option>';
+      fileSelect.disabled = true;
+
+      oemSelect.innerHTML =
+        '<option value="">(auto from manifest)</option>';
+      componentSelect.innerHTML =
+        '<option value="">(auto from manifest)</option>';
+      versionInput.value = "";
+      nameInput.value = "";
+      enablePrereq.checked = false;
+      addTargets.checked = false;
+      setStatus("");
+    });
+
+    cancelBtn.addEventListener("click", () => {
+      // Simple behavior: clear everything
+      sasUrlInput.value = "";
+      baseFolderInput.value = "";
+      currentSasUrl = "";
+      currentBaseFolder = "";
+      resetBtn.click();
+      folderSelect.innerHTML =
+        '<option value="">Connect to load folders...</option>';
+      folderSelect.disabled = true;
+      setStatus("Cancelled. Connection cleared.");
+    });
+
+    buildBtn.addEventListener("click", () => {
+      if (!fileSelect.value || !folderSelect.value) {
+        setStatus("Select a folder and file before building.", true);
+        return;
+      }
+
+      const payload = {
+        source: {
+          sasUrl: sasUrlInput.value.trim(),
+          baseFolder: baseFolderInput.value.trim(),
+          folder: folderSelect.value,
+          file: fileSelect.value,
+        },
+        metadata: {
+          oem: oemSelect.value || null,
+          component: componentSelect.value || null,
+          version: versionInput.value || null,
+          name: nameInput.value || null,
+        },
+        options: {
+          enablePrerequisites: enablePrereq.checked,
+          addTargets: addTargets.checked,
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      // Browser can't show native Windows "Save As" directly,
+      // but this triggers a download dialog for task.json.
+      triggerDownload("task.json", payload);
+      setStatus("task.json generated.");
+    });
+  </script>
+</body>
+</html>
