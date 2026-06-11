@@ -136,8 +136,12 @@
 
             showLocalStatus('buildStatus', 'Querying configuration items...', 'info');
             
+            // Build manifest URL using safe URL path manipulation
+            const manifestUrl = new URL(window.AppState.baseUrl);
+            // Ensure path segments are structured smoothly without duplicate slashes
+            manifestUrl.pathname = `${window.AppState.containerPath}/${folder}manifest.json`.replace(/\/+/g, '/');
+
             try {
-                const manifestUrl = new URL(window.AppState.baseUrl + '/' + folder + 'manifest.json');
                 const response = await fetch(manifestUrl.toString());
                 
                 if (response.ok) {
@@ -152,15 +156,18 @@
                     window.AppState.manifestParsedSuccessfully = true;
                     showLocalStatus('buildStatus', 'Manifest processed successfully.', 'success');
                 } else {
-                    throw new Error('manifest.json could not be located.');
+                    throw new Error(`HTTP status ${response.status} finding manifest.json`);
                 }
             } catch (e) {
                 window.AppState.manifestParsedSuccessfully = false;
                 showLocalStatus('buildStatus', `Lookup completed: ${e.message}`, 'error');
             }
 
+            // Build prereqs URL using safe URL path manipulation
+            const prereqUrl = new URL(window.AppState.baseUrl);
+            prereqUrl.pathname = `${window.AppState.containerPath}/${folder}prereqs.json`.replace(/\/+/g, '/');
+
             try {
-                const prereqUrl = new URL(window.AppState.baseUrl + '/' + folder + 'prereqs.json');
                 const prereqHead = await fetch(prereqUrl.toString(), { method: 'HEAD' });
                 document.getElementById('prereqCheckbox').checked = prereqHead.ok;
             } catch(e) {}
