@@ -243,8 +243,9 @@
                 let marker = '';
                 
                 do {
-                    const listUrl = `${baseUrl}?restype=container&comp=list&maxresults=5000${sasTokenOnly}`;
-                    
+                    //const listUrl = `${baseUrl}?restype=container&comp=list&maxresults=5000${sasTokenOnly}`;
+                    const url = `${parsed.base}/${blobName}?${parsed.queryString}`;
+
                     if (basePrefix) {
                         const urlWithPrefix = new URL(listUrl);
                         urlWithPrefix.searchParams.set('prefix', basePrefix);
