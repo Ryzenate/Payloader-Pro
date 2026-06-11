@@ -173,6 +173,7 @@
     .status {
       font-size: 0.8rem;
       color: #6b7280;
+      word-break: break-all;
     }
 
     .status.error {
@@ -200,7 +201,7 @@
       <div class="row">
         <label style="min-width: 220px;">
           Blob container SAS URL
-          <input type="text" id="sasUrl" placeholder="https://account.blob.core.windows.net/container?sv=...&sig=..." />
+          <input type="text" id="sasUrl" placeholder="https://account.blob.core.windows.net/container?sv=...&sp=rl&sr=c&sig=..." />
         </label>
         <label style="min-width: 160px;">
           Base folder (prefix)
@@ -291,15 +292,41 @@
       el.classList.toggle("error", !!isError);
     }
 
+    // Parse SAS URL into base + normalized query string (without leading '?')
     function parseSasUrl(url) {
       try {
         const u = new URL(url);
-        const sas = u.search;
         const base = u.origin + u.pathname;
-        return { base, sas };
+
+        // Normalize query: keep all params, regardless of order (sv, sp, sr, sig, etc.)
+        const params = new URLSearchParams(u.search);
+        if (!params.has("sv")) {
+          console.warn("SAS URL missing sv= (version). This may fail.");
+        }
+        if (!params.has("sr")) {
+          console.warn("SAS URL missing sr= (resource type). This may fail.");
+        }
+        if (!params.has("sp")) {
+          console.warn("SAS URL missing sp= (permissions). This may fail.");
+        }
+        if (!params.has("sig")) {
+          console.warn("SAS URL missing sig= (signature). This will fail.");
+        }
+
+        const queryString = params.toString(); // no leading '?'
+        return { base, queryString };
       } catch {
         return null;
       }
+    }
+
+    // Build a URL for container list with extra query params + SAS
+    function buildContainerListUrl(parsed, extraParams) {
+      const qs = new URLSearchParams(extraParams);
+      const sas = parsed.queryString;
+      const full = parsed.base + "?" + qs.toString() + "&" + sas;
+      console.debug("List URL:", full);
+      return full;
     }
 
     async function listFolders(sasUrl, basePrefix) {
@@ -307,14 +334,18 @@
       if (!parsed) throw new Error("Invalid SAS URL");
 
       const prefix = basePrefix || "";
-      const url =
-        parsed.base +
-        "?restype=container&comp=list&delimiter=/&prefix=" +
-        encodeURIComponent(prefix) +
-        parsed.sas;
+      const url = buildContainerListUrl(parsed, {
+        restype: "container",
+        comp: "list",
+        delimiter: "/",
+        prefix: prefix
+      });
 
       const res = await fetch(url);
-      if (!res.ok) throw new Error("List blobs failed: " + res.status);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error("List blobs failed: " + res.status + " " + text);
+      }
 
       const text = await res.text();
       const parser = new DOMParser();
@@ -332,14 +363,17 @@
       const parsed = parseSasUrl(sasUrl);
       if (!parsed) throw new Error("Invalid SAS URL");
 
-      const url =
-        parsed.base +
-        "?restype=container&comp=list&prefix=" +
-        encodeURIComponent(folderPrefix) +
-        parsed.sas;
+      const url = buildContainerListUrl(parsed, {
+        restype: "container",
+        comp: "list",
+        prefix: folderPrefix
+      });
 
       const res = await fetch(url);
-      if (!res.ok) throw new Error("List blobs failed: " + res.status);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error("List blobs failed: " + res.status + " " + text);
+      }
 
       const text = await res.text();
       const parser = new DOMParser();
@@ -358,9 +392,13 @@
     async function fetchJsonBlob(sasUrl, blobName) {
       const parsed = parseSasUrl(sasUrl);
       if (!parsed) throw new Error("Invalid SAS URL");
-      const url = parsed.base + "/" + encodeURIComponent(blobName) + parsed.sas;
+      const url = parsed.base + "/" + encodeURIComponent(blobName) + "?" + parsed.queryString;
+      console.debug("Manifest URL:", url);
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch " + blobName + ": " + res.status);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error("Failed to fetch " + blobName + ": " + res.status + " " + text);
+      }
       return res.json();
     }
 
@@ -407,6 +445,17 @@
         return;
       }
 
+      const parsed = parseSasUrl(sas);
+      if (!parsed) {
+        setStatus("Invalid SAS URL format.", true);
+        return;
+      }
+
+      if (!parsed.queryString.includes("sig=")) {
+        setStatus("SAS URL is missing sig= (signature). It will not work.", true);
+        return;
+      }
+
       setStatus("Connecting and listing folders...");
       connectBtn.disabled = true;
       folderSelect.disabled = true;
@@ -428,11 +477,11 @@
           folderSelect.disabled = false;
           folderSelect.appendChild(new Option("Select a folder...", "", true, false));
           folders.forEach((f) => {
-            const label = f.replace(base, "") || f;
+            const label = base ? f.replace(base, "") || f : f;
             folderSelect.appendChild(new Option(label, f));
           });
         }
-        setStatus("Connected.");
+        setStatus("Connected. Folders loaded.");
       } catch (e) {
         console.error(e);
         setStatus(e.message || "Failed to connect.", true);
@@ -499,14 +548,12 @@
     function applyManifest(manifest) {
       const { oem, component, name, version, prerequisites } = manifest || {};
 
-      // OEM
       oemSelect.innerHTML = "";
       oemSelect.appendChild(new Option("(auto from manifest)", "", !oem, !oem));
       if (oem) {
         oemSelect.appendChild(new Option(oem, oem, true, true));
       }
 
-      // Component
       componentSelect.innerHTML = "";
       componentSelect.appendChild(
         new Option("(auto from manifest)", "", !component, !component)
@@ -540,7 +587,6 @@
     });
 
     cancelBtn.addEventListener("click", () => {
-      // Simple behavior: clear everything
       sasUrlInput.value = "";
       baseFolderInput.value = "";
       currentSasUrl = "";
@@ -578,8 +624,6 @@
         createdAt: new Date().toISOString(),
       };
 
-      // Browser can't show native Windows "Save As" directly,
-      // but this triggers a download dialog for task.json.
       triggerDownload("task.json", payload);
       setStatus("task.json generated.");
     });
