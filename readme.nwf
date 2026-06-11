@@ -1,0 +1,12 @@
+
+Phase 4: Generate the Correct SAS Token
+Your PowerShell script likely used an Account Key or a broad SAS. The browser needs a specific, secure Container SAS.
+In your Storage Account, go to Data storage > Containers on the left menu.
+Click on the specific container that holds your folders and ZIP files.
+At the top of the container page, click Shared access tokens (or "Generate SAS").
+Configure the token:
+Allowed permissions: Check Read and List. (Do not check Write or Delete unless absolutely necessary).
+Start and expiry date/time: Set an expiry date in the future (e.g., 1 year from now).
+Allowed protocols: HTTPS only.
+Click Generate SAS token and URL.
+Copy the entire Blob service SAS URL (it will start with https://... and end with ?sp=rl&st=...).

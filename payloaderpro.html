@@ -96,7 +96,7 @@
                             <input type="text" id="baseFolder" placeholder="e.g., SMTI/bios_dorn" />
                         </div>
                     </div>
-                    <div class="helper-text">Must include SAS token (?sv=...&sig=...). The app will auto-detect folder paths in the URL.</div>
+                    <div class="helper-text">Paste the full SAS URL. The app will automatically clean it and handle deep folder paths or direct file links.</div>
                     <button id="connectBtn" class="btn btn-primary" style="margin-top: 15px;">Connect</button>
                     <div id="connectionStatus" class="status"></div>
                 </div>
@@ -154,7 +154,7 @@
     </div>
 
     <script type="module">
-        import { ContainerClient } from "https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.17.0/+esm";
+        import { BlobServiceClient } from "https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.17.0/+esm";
 
         let containerClient = null;
 
@@ -182,43 +182,55 @@
             connectBtn.disabled = true;
 
             try {
-                // --- SMART URL PARSER ---
-                // Fixes "Unable to extract containerName" by handling deep folder URLs
+                // --- BULLETPROOF URL PARSER ---
                 const urlObj = new URL(url);
+                const accountUrl = `${urlObj.protocol}//${urlObj.host}`;
                 const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
-                let finalPrefix = baseFolderInput.value.trim();
-
-                if (pathParts.length > 1) {
-                    const containerName = pathParts[0];
-                    const extraPath = pathParts.slice(1).join('/');
-                    
-                    // Reconstruct URL to point only to the container
-                    urlObj.pathname = `/${containerName}`;
-                    url = urlObj.toString();
-                    
-                    // Auto-fill the base folder if it was empty
-                    if (!finalPrefix) {
-                        finalPrefix = extraPath;
-                        baseFolderInput.value = finalPrefix;
-                    }
-                }
-
-                // Check for SAS token
-                if (!urlObj.search || !urlObj.search.includes('sig=')) {
-                    showStatus('ERROR: URL is missing a SAS token. It must end with ?sv=...&sig=... Generate a SAS URL from the Azure Portal.', 'error');
+                
+                if (pathParts.length === 0) {
+                    showStatus('Error: Could not find container name in URL.', 'error');
                     connectBtn.disabled = false;
                     return;
                 }
-                // ------------------------
-
-                containerClient = new ContainerClient(url);
-                await containerClient.getProperties();
                 
-                showStatus('Connected successfully!', 'success');
+                const containerName = pathParts[0];
+                let extraPath = pathParts.slice(1).join('/');
+
+                // If the extraPath looks like it ends with a file (has an extension after the last slash),
+                // remove the filename to get the actual folder path.
+                if (extraPath.includes('.')) {
+                    const lastDotIndex = extraPath.lastIndexOf('.');
+                    const lastSlashIndex = extraPath.lastIndexOf('/');
+                    if (lastDotIndex > lastSlashIndex) {
+                        extraPath = extraPath.substring(0, lastSlashIndex + 1);
+                    }
+                }
+
+                const cleanSearchParams = new URLSearchParams(urlObj.searchParams);
+                cleanSearchParams.delete('restype');
+                cleanSearchParams.delete('comp');
+                cleanSearchParams.delete('_'); 
+                const sasToken = cleanSearchParams.toString() ? `?${cleanSearchParams.toString()}` : '';
+
+                let finalPrefix = baseFolderInput.value.trim();
+                if (!finalPrefix && extraPath) {
+                    finalPrefix = extraPath;
+                    baseFolderInput.value = finalPrefix;
+                }
+
+                const blobServiceClient = new BlobServiceClient(`${accountUrl}${sasToken}`);
+                containerClient = blobServiceClient.getContainerClient(containerName);
+                
+                // Skip getProperties() as it can sometimes fail with 403 even with valid SAS tokens 
+                // due to specific container policies or immutability settings.
+                // We will test the connection directly by listing blobs.
                 folderSelect.disabled = false;
                 await loadFolders(finalPrefix);
+                
+                showStatus('Connected successfully!', 'success');
             } catch (error) {
                 console.error('Connection error:', error);
+                folderSelect.disabled = true;
                 
                 if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
                     showStatus('CONNECTION FAILED: CORS issue.\nFix: Azure Portal > Storage Account > Resource sharing (CORS) > Add rule for Blob service.', 'error');
@@ -263,6 +275,7 @@
             } catch (error) {
                 console.error('Error loading folders:', error);
                 showStatus('Failed to load folders. Check CORS and SAS permissions.', 'error');
+                throw error; // Re-throw so the connectBtn catch block can handle it
             }
         }
 
