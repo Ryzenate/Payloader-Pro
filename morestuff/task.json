@@ -1,0 +1,13 @@
+{
+    "Targeted": {"Program":false,"Station":false},
+    "UsePrereqs": false,
+    "UseInstallWrapper": true, 
+    "Component": "BIOS",
+    "OEM": "all",
+    "ReleaseName": "HP BIOS Update",
+    "ReleaseVer": "Y88 99.00.00",
+    "StorageAccount": "clientpep",
+    "ContainerName" : "selfhost",
+    "BlobFolderPath": "SMTI/260420/",
+    "BlobFilename": "AZ_Dorne-MDS-Bios-260420.zip"
+}

@@ -1,0 +1,37 @@
+{
+    "Targeted": {"Program":false,"Station":false},
+    "UseFrameWrapper": true,
+    "AZPackage": {
+        "Component": "BIOS",
+        "OEM": "all",
+        "ReleaseName": "HP BIOS Update",
+        "ReleaseVer": "Y88 99.00.00",
+        "Prerequisites": true,
+        "StorageAccount": "alienate",
+        "ContainerName" : "azpackages",
+        "BlobFolderPath": "HP/BIOS/10001",
+        "BlobFilename": "Az_Y88-99.30.10.zip"
+    },
+    "Prereqs":{
+        "Bios": {
+            "Required": false,
+            "Version": "",
+            "Name": ""
+        },
+        "Npu": {
+            "Required": false,
+            "Version": "0.0.0.0",
+            "Name": ""
+        },
+        "Os": {
+            "Required": false,
+            "Version": "0.0.0.0",
+            "Name": ""
+        },
+        "Gfx": {
+            "Required": false,
+            "Version": "0.0.0.0",
+            "Name": ""
+        }
+    }
+}
