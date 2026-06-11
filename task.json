@@ -1,0 +1,11 @@
+{
+  "folder": "HP/BIOS/10001/",
+  "file": "HP/BIOS/10001/Az-biosY88_99.33.20.zip",
+  "oem": "HP",
+  "component": "BIOS",
+  "version": "Y88 99.22.21",
+  "name": "BIOS Update",
+  "enablePrerequisites": false,
+  "addTargets": false,
+  "generatedAt": "2026-06-11T15:52:33.658Z"
+}
