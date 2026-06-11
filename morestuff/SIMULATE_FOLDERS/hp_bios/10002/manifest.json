@@ -1,0 +1,10 @@
+{
+    "component": "BIOS",
+    "oem": "HP",
+    "name": "HP BIOS Update",
+    "version": "Y88_99.35.10",
+    "ContainerName" : "azpackages",
+    "BlobFolderPath": "HP/BIOS/10002",
+    "BlobFilename": "Az-biosY88_99.35.10",
+    "Prerequisites": false
+}

@@ -1,0 +1,11 @@
+{
+    "component": "BIOS",
+    "oem": "ASUS",
+    "name": "ASUS BIOS Update",
+    "version": "X1505ZAAS.320",
+    "description": "Vivobook model X1505ZA with BIOS version 320",
+    "ContainerName" : "azpackages",
+    "BlobFolderPath": "ASUS/BIOS/10002",
+    "BlobFilename": "Az-bios-X1505ZAAS.320.zip",
+    "Prerequisites": false
+}

@@ -1,0 +1,14 @@
+{
+  "folder": "ASUS/BIOS/10001/",
+  "file": "ASUS/BIOS/10001/Az-bios-X1505ZAAS.310.zip",
+  "oem": "ASUS",
+  "component": "BIOS",
+  "version": "X1505ZAAS.310",
+  "name": "ASUS BIOS Update",
+  "enablePrerequisites": true,
+  "targeting": {
+    "targetStations": false,
+    "targetPrograms": false
+  },
+  "generatedAt": "2026-06-11T19:56:36.895Z"
+}

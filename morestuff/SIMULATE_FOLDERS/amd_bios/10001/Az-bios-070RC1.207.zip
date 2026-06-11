@@ -1,0 +1,87 @@
+Resolving WSL2 Deployment Error with Docker Desktop
+
+The error occurs when deploying WSL2 distributions, specifically while checking the bootstrap version of the main distribution. This issue often arises due to misconfigurations in WSL or Docker Desktop.
+
+Example
+
+c:\windows\system32\wsl.exe -d docker-desktop -e cat /etc/wsl_bootstrap_version
+exit status 0xffffffff
+Steps to Resolve
+
+Unregister and Restart Docker Desktop: If the docker-desktop distribution is corrupted, unregister it and restart Docker Desktop.
+
+wsl --unregister docker-desktop
+Update WSL: Ensure you are using the latest version of WSL.
+
+wsl --update
+Enable Required Features: Verify that both the Windows Subsystem for Linux and Virtual Machine Platform features are enabled.
+
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+Check Networking Configuration: If networking issues persist, modify .wslconfig to disable networking mode for Docker. Add the following to C:\Users\<YourUser>\.wslconfig:
+
+[wsl2]
+networkingMode=None
+Verify File Permissions: Ensure that the vhdx file used by Docker is writable and accessible. If restored from a backup, remove any read-only flags.
+
+Reinstall Docker Desktop: If none of the above steps work, reinstall Docker Desktop and ensure it is configured for WSL2.
+
+By following these steps, you can resolve the deployment error and ensure smooth operation of WSL2 with Docker Desktop.
+
+Learn more:
+1 -
+stackoverflow.com
+2 -
+learn.microsoft.com
+3 -
+github.com
+
+
+C:\Users\ionatexas>wsl --unregister docker-desktop
+Unregistering.
+The service cannot be started, either because it is disabled or because it has no enabled devices associated with it.
+Error code: Wsl/0x80070422
+
+C:\Users\ionatexas>wsl --update
+Checking for updates.
+The most recent version of Windows Subsystem for Linux is already installed.
+
+Ah, that explains a lot. If you're not seeing LxssManager in your services list, you're likely using a newer version of WSL—especially if you've installed it via the Microsoft Store or you're on Windows 11 24H2 or later. In this setup, the traditional LxssManager service has been replaced by a new one called WSLService
+
+Ah, that explains a lot. If you're not seeing **LxssManager** in your services list, you're likely using a **newer version of WSL**—especially if you've installed it via the **Microsoft Store** or you're on **Windows 11 24H2 or later**. In this setup, the traditional `LxssManager` service has been replaced by a new one called **WSLService**.
+
+### 🛠 What to Do Instead
+
+Try this:
+
+1. **Check for WSLService**:
+   - Open **PowerShell as Administrator**.
+   - Run:
+     ```powershell
+     Get-Service WSLService
+     ```
+   - If it's listed, you can start it with:
+     ```powershell
+     Start-Service WSLService
+     ```
+
+2. **If WSLService is missing too**:
+   - Reinstall WSL:
+     ```powershell
+     wsl --uninstall
+     wsl --install
+     ```
+   - This will restore the correct service and components.
+
+3. **Update WSL** (optional but recommended):
+   ```powershell
+   wsl --update
+   ```
+
+Once the proper service is running, you should be able to unregister `docker-desktop` using:
+```powershell
+wsl --unregister docker-desktop
+```
+
+Let me know if you’re still stuck—I can help dig deeper into your setup.
+

@@ -1,0 +1,11 @@
+{
+    "component": "BIOS",
+    "oem": "AMD",
+    "name": "AMD BIOS Update",
+    "version": "207",
+    "description": "AMD MDS EFFP Project v207",
+    "ContainerName" : "azpackages",
+    "BlobFolderPath": "AMD/BIOS/10001",
+    "BlobFilename": "Az-bios-070RC1.207.zip",
+    "Prerequisites": false
+}

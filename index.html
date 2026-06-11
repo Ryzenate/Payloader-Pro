@@ -1,106 +1,550 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Driver/BIOS Update Pipeline</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payloader Pro - Compact</title>
     <style>
-        body { font-family: Arial; margin: 40px; }
-        .container { max-width: 800px; margin: auto; }
-        button { padding: 10px; margin: 10px 0; }
-        #status { margin-top: 20px; padding: 10px; background: #f0f0f0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f3f3;
+            padding: 12px;
+            color: #333;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { text-align: center; color: #0078d4; margin-bottom: 15px; font-size: 24px; font-weight: 600; }
+        
+        /* Compact Grid Framework */
+        .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+        .left-column { display: flex; flex-direction: column; gap: 12px; }
+        
+        .frame {
+            background: white;
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .frame-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #0078d4;
+        }
+        .form-group { margin-bottom: 8px; }
+        label { display: block; margin-bottom: 3px; font-size: 12px; color: #555; font-weight: 500; }
+        
+        input[type="text"], input[type="url"], select {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="url"]:focus, select:focus { outline: none; border-color: #0078d4; }
+        .helper-text { font-size: 11px; color: #666; margin-top: 3px; }
+        
+        .connect-grid { display: grid; grid-template-columns: 1fr 200px; gap: 10px; }
+        .manifest-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+        .bottom-grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+        
+        .btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background-color: #0078d4; color: white; width: 100%; }
+        .btn-primary:hover { background-color: #106ebe; }
+        .btn-primary:disabled { background-color: #a0c4e4; cursor: not-allowed; }
+        .btn-secondary { background-color: #f0f0f0; color: #333; border: 1px solid #ccc; }
+        .btn-secondary:hover { background-color: #e0e0e0; }
+        
+        .options-stack { display: flex; flex-direction: column; gap: 6px; }
+        .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+        input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #0078d4; }
+        
+        .button-group { display: flex; gap: 8px; }
+        .button-group .btn { min-width: 80px; height: 32px; }
+        .status { margin-top: 8px; padding: 8px; border-radius: 4px; font-size: 12px; display: none; white-space: pre-wrap; }
+        .status.success { background-color: #dff6dd; color: #107c10; display: block; }
+        .status.error { background-color: #fde7e9; color: #a80000; display: block; }
+        .status.info { background-color: #eef6fc; color: #0078d4; display: block; }
+        
+        @media (max-width: 768px) {
+            .main-grid { display: flex; flex-direction: column; }
+            .connect-grid, .manifest-grid, .bottom-grid { grid-template-columns: 1fr; }
+            .button-group { width: 100%; justify-content: flex-end; }
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>Driver/BIOS Update Pipeline</h1>
-    
-    <button onclick="testConnection()" style="background-color: #4CAF50; color: white;">Test Connection</button>
-    
-    <label>Azure Storage Container (Blob):</label>
-    <input type="text" id="containerName" placeholder="e.g., driver-updates" style="width: 100%; margin: 10px 0;">
-    
-    <label>Select ZIP File:</label>
-    <input type="text" id="blobPath" placeholder="folder/my-update.zip" style="width: 100%; margin: 10px 0;">
-    
-    <button onclick="processUpdate()">Process Update</button>
-    
-    <div id="status">Ready</div>
-</div>
-
-<script>
-    // Always use the Azure Function App endpoint, not the Static Web App
-    const FUNCTION_URL = "https://payloaderpro.azurewebsites.net/api/processUpdate";
-    const HEALTH_URL = "https://payloaderpro.azurewebsites.net/api/health";
-
-    async function testConnection() {
-        document.getElementById('status').innerHTML = 'Testing connection...';
-        console.log('Testing health check at:', HEALTH_URL);
-        try {
-            const response = await fetch(HEALTH_URL, { mode: 'cors' });
-            const data = await response.json();
-            document.getElementById('status').innerHTML = `✅ Connection OK: ${data.message}`;
-            console.log('Health check response:', data);
-        } catch (error) {
-            console.error('Connection test failed:', error);
-            document.getElementById('status').innerHTML = `❌ Connection failed: ${error.message}. Function URL: ${HEALTH_URL}`;
-        }
-    }
-
-    async function processUpdate() {
-        const container = document.getElementById('containerName').value;
-        const blobPath = document.getElementById('blobPath').value;
+    <div class="container">
+        <h1>Payloader Pro</h1>
         
-        if (!container || !blobPath) {
-            alert('Please enter container name and blob path');
-            return;
-        }
-        
-        document.getElementById('status').innerHTML = 'Processing... This may take a few minutes.';
-        console.log('Calling function URL:', FUNCTION_URL);
-        
-        try {
-            const response = await fetch(FUNCTION_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    containerName: container,
-                    sourceBlobPath: blobPath
-                })
-            });
+        <div class="main-grid">
+            <div class="left-column">
+                
+                <div class="frame">
+                    <div class="frame-title">Connect to Blob Storage Account</div>
+                    <div class="connect-grid">
+                        <div class="form-group">
+                            <label for="containerUrl">Container SAS URL</label>
+                            <input type="url" id="containerUrl" placeholder="https://<account>.blob.core.windows.net/<container>?<sas-token>" />
+                        </div>
+                        <div class="form-group">
+                            <label for="baseFolder">Base Folder Prefix (Optional)</label>
+                            <input type="text" id="baseFolder" placeholder="e.g., HP/BIOS/" />
+                        </div>
+                    </div>
+                    <div class="helper-text">Paste the full SAS URL with restype=container&comp=list parameters.</div>
+                    <button id="connectBtn" class="btn btn-primary" style="margin-top: 8px; width: auto; display: inline-block;">Connect</button>
+                    <div id="connectionStatus" class="status"></div>
+                </div>
 
-            const text = await response.text();
-            let result = null;
+                <div class="frame">
+                    <div class="frame-title">Manifest Details</div>
+                    <div class="manifest-grid">
+                        <div class="form-group">
+                            <label for="oemInput">OEM</label>
+                            <input type="text" id="oemInput" placeholder="e.g., HP" />
+                        </div>
+                        <div class="form-group">
+                            <label for="componentInput">Component</label>
+                            <input type="text" id="componentInput" placeholder="e.g., BIOS" />
+                        </div>
+                        <div class="form-group">
+                            <label for="versionInput">Version</label>
+                            <input type="text" id="versionInput" placeholder="e.g., Y88 99.30.20" />
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="nameInput">Name</label>
+                        <input type="text" id="nameInput" placeholder="e.g., HP BIOS Update" />
+                    </div>
+                </div>
+
+                <div class="bottom-grid">
+                    <div class="frame">
+                        <div class="frame-title">Options</div>
+                        <div class="options-stack">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="prereqCheckbox" /> Enable Prerequisites
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="stationsCheckbox" /> Target Stations
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="programsCheckbox" /> Target Programs
+                            </label>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
+                        <button id="resetBtn" class="btn btn-secondary">Reset</button>
+                        <button id="buildBtn" class="btn btn-primary">Build</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="frame">
+                <div class="frame-title">Package Selection</div>
+                <div class="form-group">
+                    <label for="folderSelect">Select Folder</label>
+                    <select id="folderSelect" disabled><option value="">-- Connect to load folders --</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="fileSelect">Select File</label>
+                    <select id="fileSelect" disabled><option value="">-- Select a folder first --</option></select>
+                </div>
+                <button id="loadManifestBtn" class="btn btn-primary" style="margin-top: 4px;" disabled>Load Manifest</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let baseUrl = '';
+        let containerPath = '';
+
+        // DOM Elements
+        const connectBtn = document.getElementById('connectBtn');
+        const containerUrlInput = document.getElementById('containerUrl');
+        const baseFolderInput = document.getElementById('baseFolder');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const folderSelect = document.getElementById('folderSelect');
+        const fileSelect = document.getElementById('fileSelect');
+        const loadManifestBtn = document.getElementById('loadManifestBtn');
+        const oemInput = document.getElementById('oemInput');
+        const componentInput = document.getElementById('componentInput');
+        const versionInput = document.getElementById('versionInput');
+        const nameInput = document.getElementById('nameInput');
+        const prereqCheckbox = document.getElementById('prereqCheckbox');
+        const stationsCheckbox = document.getElementById('stationsCheckbox');
+        const programsCheckbox = document.getElementById('programsCheckbox');
+
+        // Connect button handler
+        connectBtn.addEventListener('click', async () => {
+            const url = containerUrlInput.value.trim();
+            if (!url) {
+                showStatus('Please enter a Container SAS URL.', 'error');
+                return;
+            }
+
+            showStatus('Connecting...', 'info');
+            connectBtn.disabled = true;
+
             try {
-                result = JSON.parse(text);
-            } catch (parseError) {
-                // If the response is not JSON, keep the raw text for diagnostics.
-            }
-
-            if (!response.ok) {
-                const serverMessage = result?.message || result?.error || text || response.statusText;
-                throw new Error(`HTTP ${response.status}: ${serverMessage}`);
-            }
-
-            if (!result || !result.outputFile) {
-                throw new Error(`Invalid response from server: ${text}`);
-            }
-
-            document.getElementById('status').innerHTML = 
-                `✅ Complete! Output in ${container}/out/${result.outputFile}`;
-        } catch (error) {
-            console.error('Fetch error:', error);
-            console.error('Error stack:', error.stack);
-            let errorMsg = error.message;
-            if (error.message === 'Failed to fetch') {
-                if (window.location.protocol === 'file:') {
-                    errorMsg = 'Cannot fetch from file:// protocol. Run from a local server: python -m http.server 8000, then visit http://localhost:8000/index.html';
-                } else {
-                    errorMsg = `Failed to connect to ${FUNCTION_URL}. Ensure Azure Function is running and CORS is enabled.`;
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+                
+                if (pathParts.length === 0) {
+                    showStatus('Error: Could not find container name in URL.', 'error');
+                    connectBtn.disabled = false;
+                    return;
                 }
+                
+                containerPath = '/' + pathParts[0];
+                
+                const cleanUrl = new URL(url);
+                cleanUrl.searchParams.delete('restype');
+                cleanUrl.searchParams.delete('comp');
+                cleanUrl.searchParams.delete('prefix');
+                cleanUrl.searchParams.delete('delimiter');
+                cleanUrl.searchParams.delete('marker');
+                cleanUrl.searchParams.delete('_');
+                
+                baseUrl = cleanUrl.toString();
+                
+                await listAllFolders();
+                
+                showStatus('Connected successfully!', 'success');
+                folderSelect.disabled = false;
+            } catch (error) {
+                console.error('Connection error:', error);
+                if (error.message.includes('Failed to fetch')) {
+                    showStatus('CONNECTION FAILED: CORS issue.\nFix: Azure Portal > Storage Account > Resource sharing (CORS) > Add rule for Blob service.', 'error');
+                } else if (error.message.includes('403')) {
+                    showStatus('Connection failed: 403 Forbidden. SAS token may be expired or lack permissions.', 'error');
+                } else {
+                    showStatus(`Connection failed: ${error.message}`, 'error');
+                }
+            } finally {
+                connectBtn.disabled = false;
             }
-            document.getElementById('status').innerHTML = `❌ Error: ${errorMsg}`;
+        });
+
+        // List all folders by fetching all blobs and extracting folder paths
+        async function listAllFolders() {
+            folderSelect.innerHTML = '<option value="">-- Loading folders... --</option>';
+            const basePrefix = baseFolderInput.value.trim();
+            
+            try {
+                const folders = new Set();
+                let marker = '';
+                let pageCount = 0;
+                
+                do {
+                    const listUrl = new URL(baseUrl);
+                    listUrl.searchParams.set('restype', 'container');
+                    listUrl.searchParams.set('comp', 'list');
+                    listUrl.searchParams.set('maxresults', '5000');
+                    
+                    if (basePrefix) listUrl.searchParams.set('prefix', basePrefix);
+                    if (marker) listUrl.searchParams.set('marker', marker);
+                    
+                    const response = await fetch(listUrl.toString());
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const text = await response.text();
+                    const parser = new DOMParser();
+                    const xml = parser.parseFromString(text, 'text/xml');
+                    
+                    const errorNode = xml.getElementsByTagName('Error')[0];
+                    if (errorNode) {
+                        const code = errorNode.getElementsByTagName('Code')[0]?.textContent || 'Unknown';
+                        const message = errorNode.getElementsByTagName('Message')[0]?.textContent || 'Unknown error';
+                        throw new Error(`${code}: ${message}`);
+                    }
+                    
+                    const blobs = xml.getElementsByTagName('Blob');
+                    for (const blob of blobs) {
+                        const nameNode = blob.getElementsByTagName('Name')[0];
+                        if (nameNode) {
+                            const name = nameNode.textContent;
+                            const lastSlash = name.lastIndexOf('/');
+                            if (lastSlash > 0) {
+                                folders.add(name.substring(0, lastSlash + 1));
+                            }
+                        }
+                    }
+                    
+                    const nextMarkerNode = xml.getElementsByTagName('NextMarker')[0];
+                    marker = nextMarkerNode && nextMarkerNode.textContent ? nextMarkerNode.textContent : '';
+                    pageCount++;
+                    
+                    if (pageCount > 1) {
+                        showStatus(`Loading folders... (page ${pageCount}, found ${folders.size} folders)`, 'info');
+                    }
+                    
+                } while (marker);
+                
+                folderSelect.innerHTML = '<option value="">-- Select Folder --</option>';
+                const sortedFolders = Array.from(folders).sort();
+                
+                if (sortedFolders.length === 0) {
+                    const option = document.createElement('option');
+                    option.text = 'No folders found';
+                    option.disabled = true;
+                    folderSelect.add(option);
+                } else {
+                    sortedFolders.forEach(folder => {
+                        const option = document.createElement('option');
+                        option.value = folder;
+                        option.text = folder;
+                        folderSelect.add(option);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error loading folders:', error);
+                folderSelect.innerHTML = '<option value="">-- Error loading folders --</option>';
+                throw error;
+            }
         }
-    }
-</script>
+
+        // Handle folder selection
+        folderSelect.addEventListener('change', async (e) => {
+            const selectedFolder = e.target.value;
+            fileSelect.innerHTML = '<option value="">-- Select File --</option>';
+            fileSelect.disabled = true;
+            loadManifestBtn.disabled = true;
+            
+            clearManifestFields();
+
+            if (!selectedFolder) return;
+
+            fileSelect.innerHTML = '<option value="">-- Searching for ZIP files... --</option>';
+            
+            try {
+                const listUrl = new URL(baseUrl);
+                listUrl.searchParams.set('restype', 'container');
+                listUrl.searchParams.set('comp', 'list');
+                listUrl.searchParams.set('prefix', selectedFolder);
+                
+                const response = await fetch(listUrl.toString());
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, 'text/xml');
+                
+                let latestZip = null;
+                let latestDate = new Date(0);
+                
+                const blobs = xml.getElementsByTagName('Blob');
+                for (const blob of blobs) {
+                    const nameNode = blob.getElementsByTagName('Name')[0];
+                    if (!nameNode) continue;
+                    
+                    const name = nameNode.textContent;
+                    if (name.toLowerCase().endsWith('.zip')) {
+                        const lastModifiedNode = blob.getElementsByTagName('Last-Modified')[0];
+                        if (lastModifiedNode) {
+                            const modified = new Date(lastModifiedNode.textContent);
+                            if (modified > latestDate) {
+                                latestDate = modified;
+                                latestZip = name;
+                            }
+                        }
+                    }
+                }
+                
+                fileSelect.innerHTML = '<option value="">-- Select File --</option>';
+                if (latestZip) {
+                    const option = document.createElement('option');
+                    option.value = latestZip;
+                    const fileName = latestZip.split('/').pop();
+                    option.text = `${fileName} (Latest: ${latestDate.toLocaleString()})`;
+                    fileSelect.add(option);
+                    fileSelect.value = latestZip;
+                    fileSelect.disabled = false;
+                    loadManifestBtn.disabled = false;
+                } else {
+                    const option = document.createElement('option');
+                    option.text = 'No ZIP files found in this folder';
+                    option.disabled = true;
+                    fileSelect.add(option);
+                }
+                
+            } catch (error) {
+                console.error('Error loading files:', error);
+                fileSelect.innerHTML = '<option value="">-- Error loading files --</option>';
+            }
+        });
+
+        // Trigger manual loading of configuration files
+        loadManifestBtn.addEventListener('click', async () => {
+            const selectedFolder = folderSelect.value;
+            if (!selectedFolder) return;
+            
+            showStatus('Loading payload configuration metadata...', 'info');
+            clearManifestFields();
+            
+            await processManifestAndPrereqs(selectedFolder);
+        });
+
+        // Fetch manifest.json data and check for prereqs.json presence
+        async function processManifestAndPrereqs(folderPrefix) {
+            const normalizedPrefix = folderPrefix.endsWith('/') ? folderPrefix : folderPrefix + '/';
+            const manifestPath = `${normalizedPrefix}manifest.json`;
+            const prereqsPath = `${normalizedPrefix}prereqs.json`;
+            
+            let manifestLoaded = false;
+
+            try {
+                const manifestUrl = new URL(baseUrl);
+                const currentPath = manifestUrl.pathname;
+                manifestUrl.pathname = `${currentPath}/${manifestPath}`.replace(/\/+/g, '/');
+                
+                const response = await fetch(manifestUrl.toString());
+                if (response.ok) {
+                    const textData = await response.text();
+                    const manifest = JSON.parse(textData);
+                    
+                    oemInput.value = manifest.oem !== undefined ? String(manifest.oem) : (manifest.OEM !== undefined ? String(manifest.OEM) : '');
+                    componentInput.value = manifest.component !== undefined ? String(manifest.component) : (manifest.Component !== undefined ? String(manifest.Component) : '');
+                    versionInput.value = manifest.version !== undefined ? String(manifest.version) : (manifest.Version !== undefined ? String(manifest.Version) : '');
+                    nameInput.value = manifest.name !== undefined ? String(manifest.name) : (manifest.Name !== undefined ? String(manifest.Name) : '');
+                    
+                    manifestLoaded = true;
+                } else {
+                    console.warn(`Manifest access response status: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error fetching/parsing manifest.json:', error);
+            }
+
+            try {
+                const prereqsUrl = new URL(baseUrl);
+                const currentPath = prereqsUrl.pathname;
+                prereqsUrl.pathname = `${currentPath}/${prereqsPath}`.replace(/\/+/g, '/');
+                
+                const response = await fetch(prereqsUrl.toString(), { method: 'HEAD' });
+                prereqCheckbox.checked = response.ok;
+            } catch (error) {
+                console.error('Error searching for prereqs.json:', error);
+                prereqCheckbox.checked = false;
+            }
+
+            if (manifestLoaded) {
+                showStatus('Manifest configuration parsing complete.', 'success');
+            } else {
+                showStatus('Manifest lookup completed. (manifest.json was not found or field keys returned unexpected formatting).', 'info');
+            }
+        }
+
+        function clearManifestFields() {
+            oemInput.value = '';
+            componentInput.value = '';
+            versionInput.value = '';
+            nameInput.value = '';
+            prereqCheckbox.checked = false;
+        }
+
+        // Build button handler to structure task.json
+        document.getElementById('buildBtn').addEventListener('click', async () => {
+            const taskData = {
+                folder: folderSelect.value,
+                file: fileSelect.value,
+                oem: oemInput.value,
+                component: componentInput.value,
+                version: versionInput.value,
+                name: nameInput.value,
+                enablePrerequisites: prereqCheckbox.checked,
+                targeting: {
+                    targetStations: stationsCheckbox.checked,
+                    targetPrograms: programsCheckbox.checked
+                },
+                generatedAt: new Date().toISOString()
+            };
+
+            const jsonString = JSON.stringify(taskData, null, 2);
+
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: 'task.json',
+                        types: [{
+                            description: 'JSON Files',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(jsonString);
+                    await writable.close();
+                    showStatus('task.json saved successfully!', 'success');
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('Save failed:', err);
+                        fallbackDownload(jsonString, 'task.json');
+                    }
+                }
+            } else {
+                fallbackDownload(jsonString, 'task.json');
+            }
+        });
+
+        // Fallback download mechanism
+        function fallbackDownload(content, filename) {
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showStatus('task.json downloaded.', 'success');
+        }
+
+        // Reset button handler
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            folderSelect.innerHTML = '<option value="">-- Connect to load folders --</option>';
+            folderSelect.disabled = true;
+            fileSelect.innerHTML = '<option value="">-- Select a folder first --</option>';
+            fileSelect.disabled = true;
+            loadManifestBtn.disabled = true;
+            clearManifestFields();
+            stationsCheckbox.checked = false;
+            programsCheckbox.checked = false;
+            connectionStatus.className = 'status';
+            connectionStatus.style.display = 'none';
+        });
+
+        // Cancel button handler
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            if (confirm('Cancel? Unsaved selections will be lost.')) {
+                window.location.reload();
+            }
+        });
+
+        // Status helper
+        function showStatus(message, type) {
+            connectionStatus.textContent = message;
+            connectionStatus.className = `status ${type}`;
+        }
+    </script>
 </body>
 </html>

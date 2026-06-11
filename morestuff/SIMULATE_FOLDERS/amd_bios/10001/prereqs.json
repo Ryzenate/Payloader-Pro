@@ -1,0 +1,22 @@
+{
+    "Bios": {
+        "Required": false,
+        "Version": "",
+        "Name": ""
+    },
+    "Npu": {
+        "Required": false,
+        "Version": "0.0.0.0",
+        "Name": ""
+    },
+    "Os": {
+        "Required": false,
+        "Version": "0.0.0.0",
+        "Name": ""
+    },
+    "Gfx": {
+        "Required": false,
+        "Version": "0.0.0.0",
+        "Name": ""
+    }
+}

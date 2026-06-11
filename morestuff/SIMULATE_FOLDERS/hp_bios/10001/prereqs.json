@@ -1,0 +1,22 @@
+{
+    "Bios": {
+        "Required": true,
+        "Version": "Y88_99.30.00",
+        "Name": "Required min BIOS for test version"
+    },
+    "Npu": {
+        "Required": false,
+        "Version": "0.0.0.0",
+        "Name": ""
+    },
+    "Os": {
+        "Required": false,
+        "Version": "0.0.0.0",
+        "Name": ""
+    },
+    "Gfx": {
+        "Required": false,
+        "Version": "0.0.0.0",
+        "Name": ""
+    }
+}
